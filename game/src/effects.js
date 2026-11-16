@@ -2,7 +2,7 @@
 // and trauma-based screen shake. All pools are allocated once at boot; nothing here
 // allocates per frame. Shake is trauma squared, so light hits barely move and the
 // boss's hits punch.
-import { POOL } from './config.js';
+import { FIELD, POOL } from './config.js';
 
 export function createEffects(random) {
   const particles = [];
@@ -62,7 +62,11 @@ export function createEffects(random) {
     }
     if (slot === null) slot = texts[0];
     slot.active = true;
-    slot.x = x + (random() - 0.5) * 10;
+    // Spread same-target numbers so they never stack into one blob, and clamp
+    // long callouts (FLARE BURST!, LANTERN SURGE!) inside the field — v3/v4
+    // screenshots caught them running off the right edge. The clamp leaves
+    // room for the widest callouts (28px "THE SHADOW MOTH!" ≈ 250px wide).
+    slot.x = Math.max(140, Math.min(FIELD.width - 140, x + (random() - 0.5) * 28));
     slot.y = y;
     slot.life = 0.8;
     slot.maxLife = 0.8;
@@ -174,12 +178,13 @@ export function createEffects(random) {
     }
   }
 
-  /** The camera offset this frame (visual only — it never moves the simulation). */
+  /** The camera offset this frame (visual only — it never moves the simulation).
+   * Bumped in v4: hits must punch, not wobble softly. */
   function shakeOffset() {
     const shake = trauma * trauma;
     return {
-      x: 10 * shake * Math.sin(time * 47.3),
-      y: 8 * shake * Math.sin(time * 39.7),
+      x: 12 * shake * Math.sin(time * 47.3),
+      y: 10 * shake * Math.sin(time * 39.7),
     };
   }
 

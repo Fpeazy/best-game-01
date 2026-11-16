@@ -1,7 +1,7 @@
 // The HUD's hit areas: the shop cards, the top-bar buttons, the start-wave button
 // and the selected-tower panel. One place owns every rectangle, so the renderer and
 // the click handler can never disagree about where a button is.
-import { LAYOUT } from './config.js';
+import { ABILITY_ORDER, LAYOUT } from './config.js';
 import { LANTERN_POSTS } from './garden.js';
 import { TOWER_TYPES } from './towers.js';
 
@@ -51,6 +51,20 @@ export function startWaveRect() {
   return { x: 1142, y: LAYOUT.shopBar.y + 8, width: 126, height: LAYOUT.cardHeight };
 }
 
+/** The three ability chips in the top bar (Q / E / R), right of the Best label. */
+export function abilityRects() {
+  const bar = LAYOUT.topBar;
+  return ABILITY_ORDER.map((key, i) => ({
+    key,
+    rect: { x: 800 + i * 96, y: bar.y + 10, width: 88, height: 36 },
+  }));
+}
+
+/** The target-mode row at the top of the selected-tower panel (click cycles it). */
+export function selectedTargetRect(panel) {
+  return { x: panel.x, y: panel.y, width: panel.width, height: 28 };
+}
+
 /** The top bar's pause / speed / mute buttons, far right. */
 export function topButtons() {
   const bar = LAYOUT.topBar;
@@ -77,12 +91,16 @@ export function hitTest(x, y, world) {
   if (inside(x, y, buttons.pause)) return { kind: 'button', name: 'pause' };
   if (inside(x, y, buttons.speed)) return { kind: 'button', name: 'speed' };
   if (inside(x, y, buttons.mute)) return { kind: 'button', name: 'mute' };
+  for (const chip of abilityRects()) {
+    if (inside(x, y, chip.rect)) return { kind: 'ability', key: chip.key };
+  }
   if (world.state.phase === 'build' && inside(x, y, startWaveRect())) return { kind: 'startWave' };
   for (const card of shopCards()) {
     if (inside(x, y, card.rect)) return { kind: 'shop', type: card.type };
   }
   const panel = selectedPanelRect();
   if (world.state.selected !== null && inside(x, y, panel)) {
+    if (inside(x, y, selectedTargetRect(panel))) return { kind: 'target' };
     if (inside(x, y, selectedUpgradeRect(panel))) return { kind: 'upgrade' };
     if (inside(x, y, selectedSellRect(panel))) return { kind: 'sell' };
     return { kind: 'panel' };

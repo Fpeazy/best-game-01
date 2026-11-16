@@ -47,26 +47,24 @@ export const TOWER_TYPES = {
 
 export const MAX_LEVEL = 3;
 
-/**
- * Flat tower-damage multiplier (v3 balance retune).
- * The round-3 cooldown fix removed the burst-fire bug that had silently
- * inflated tower damage (banked negative cooldown fired one shot per step
- * when a target appeared). After the fix the autopilot fell to Normal 1/10,
- * Easy 8/12, Hard wave 6 — so all tower damage is raised 20% as the single
- * direct compensation (GLM's recommendation, cross-checked below).
- */
+/** Flat tower-damage multiplier (v3 balance retune): the round-3 cooldown fix
+ * removed a burst-fire bug that had silently inflated tower damage, so all
+ * tower damage is raised 20% as the single direct compensation. */
 export const TOWER_DAMAGE_MULT = 1.2;
 
-/**
- * Starfall Combo (GLM's feature idea, synthesised in v3): chained kills build
- * a combo — each kill within 1.5s of the last adds one, up to 5. At 5 a star
- * falls from the sky onto the toughest bug on the field for flat damage, with
- * a beam, a flash and a hit-stop punch. The damage is deliberately small
- * (150) so the combo is a spectacle and a reward, not a balance lever.
- */
+/** Starfall Combo: chained kills build a combo — each kill within 1.5s of the
+ * last adds one, up to 5. At 5 a star falls on the toughest bug for flat
+ * damage (150), with a beam, a flash and a hit-stop punch. A spectacle and a
+ * reward, not a balance lever. */
 export const COMBO_WINDOW = 1.5;
 export const COMBO_MAX = 5;
 export const STARFALL_DAMAGE = 150;
+/** Starfall scaling (v4, Nemotron Stage 3): the flat 150 did not keep up with
+ * wave HP (+20%/wave), so by waves 7-9 — the pressure band where medium
+ * strategies collapse — it was negligible chip. Each wave adds 20 damage
+ * (wave 10: 330, ~5% of the boss, ~a beetle's worth) so the combo stays a
+ * real reward where it matters most. */
+export const STARFALL_PER_WAVE = 20;
 
 /** Stats of a tower at a level, before the lantern-light bonus. */
 export function towerStats(type, level) {
@@ -113,7 +111,7 @@ export function damageAfterArmor(damage, armor) {
 export function createTowers(random, fx, glowAt) {
   const towers = [];
   for (let i = 0; i < 24; i += 1) {
-    towers.push({ active: false, type: 'yarn', level: 1, x: 0, y: 0, cooldown: 0, squash: 0, invested: 0, glow: false, glowBonus: 0, kills: 0, auraTimer: 0 });
+    towers.push({ active: false, type: 'yarn', level: 1, x: 0, y: 0, cooldown: 0, squash: 0, invested: 0, glow: false, glowBonus: 0, kills: 0, auraTimer: 0, targetMode: 'first' });
   }
   const projectiles = [];
   for (let i = 0; i < POOL.projectiles; i += 1) {
@@ -130,11 +128,11 @@ export function createTowers(random, fx, glowAt) {
 
   /**
    * The Starfall itself: a beam of light falls on the toughest bug alive, a
-   * gold burst, a ring, a flash and a hit-stop punch, and flat damage. If the
-   * star kills, the kill is appended to `killed` so the world rewards it like
-   * any other kill. Returns false when nothing is alive to strike.
+   * gold burst, a ring, a flash and a hit-stop punch, and wave-scaled damage. If the
+   * star kills, the kill is appended to `killed` so the world rewards it.
+   * Returns false when nothing is alive to strike.
    */
-  function triggerStarfall(enemies, count) {
+  function triggerStarfall(enemies, count, wave) {
     let target = null;
     for (let i = 0; i < count; i += 1) {
       const enemy = enemies[i];
@@ -151,7 +149,7 @@ export function createTowers(random, fx, glowAt) {
     fx.triggerFlash(0.45);
     fx.triggerHitStop(0.15);
     fx.addTrauma(0.5);
-    if (hitEnemy(target, STARFALL_DAMAGE, false)) killed.push(target);
+    if (hitEnemy(target, STARFALL_DAMAGE + STARFALL_PER_WAVE * ((wave ?? 1) - 1), false)) killed.push(target);
     return true;
   }
 
@@ -186,6 +184,7 @@ export function createTowers(random, fx, glowAt) {
     tower.glow = tower.glowBonus > 0;
     tower.kills = 0;
     tower.auraTimer = 0;
+    tower.targetMode = 'first';
     return tower;
   }
 
@@ -193,18 +192,15 @@ export function createTowers(random, fx, glowAt) {
     tower.active = false;
   }
 
-  /** The enemy furthest along the path inside this tower's range (and hittable). */
-  /**
-   * Target acquisition: towers focus the biggest threat first. A boss or Moth
-   * Queen in range is always the target (every beam converging on the boss is
-   * also the most readable boss fight on screen); otherwise the bug furthest
-   * along the path. v3 fix: without this the boss's escorts absorbed all fire
-   * and the boss walked to the lantern — the autopilot lost exactly the boss's
-   * 3 lives on Easy, 12/12 became 9/12.
+  /** The enemy furthest along the path inside this tower's range (and hittable).
+   * A boss or Moth Queen in range is always the target (every beam converging
+   * on the boss is the most readable boss fight); otherwise the bug picked by
+   * this tower's targeting mode (tower-defense skill §2: first = default by
+   * path progress, strongest, weakest, closest, last). The boss override is a
+   * deliberate Lead decision: v3 proved escorts absorb all fire without it.
    */
   function acquire(tower, range, enemies, count) {
     let best = null;
-    let bestProgress = -1;
     let bestBoss = null;
     let bestBossProgress = -1;
     for (let i = 0; i < count; i += 1) {
@@ -218,10 +214,15 @@ export function createTowers(random, fx, glowAt) {
           bestBossProgress = enemy.progress;
           bestBoss = enemy;
         }
-      } else if (enemy.progress > bestProgress) {
-        bestProgress = enemy.progress;
-        best = enemy;
+        continue;
       }
+      if (best === null) { best = enemy; continue; }
+      const mode = tower.targetMode ?? 'first';
+      if (mode === 'strongest' && enemy.hp > best.hp) best = enemy;
+      else if (mode === 'weakest' && enemy.hp < best.hp) best = enemy;
+      else if (mode === 'closest' && (dx * dx + dy * dy) < ((best.x - tower.x) ** 2 + (best.y - tower.y) ** 2)) best = enemy;
+      else if (mode === 'last' && enemy.progress < best.progress) best = enemy;
+      else if (mode === 'first' && enemy.progress > best.progress) best = enemy;
     }
     return bestBoss ?? best;
   }
@@ -232,12 +233,14 @@ export function createTowers(random, fx, glowAt) {
     if (crit) {
       // A crit reads at thumbnail size: a big gold number, a CRIT! callout, a
       // short hit-stop and a shake punch (game-feel, large tier).
-      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#ffd166', 26);
-      fx.spawnText(enemy.x, enemy.y - enemy.radius - 30, 'CRIT!', '#ffd166', 20);
+      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#ffd166', 30);
+      fx.spawnText(enemy.x, enemy.y - enemy.radius - 34, 'CRIT!', '#ffd166', 22);
       fx.triggerHitStop(0.09);
       fx.addTrauma(0.3);
     } else {
-      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#fff6e8');
+      // Big, bright damage numbers (v4, Nemotron 7 + GLM 5): every hit shows
+      // its number at 18px gold-white, so the play shot reads as a battle.
+      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#fff6e8', 18);
     }
     if (enemy.hp <= 0) {
       enemy.active = false;
@@ -325,7 +328,7 @@ export function createTowers(random, fx, glowAt) {
       const def = TOWER_TYPES[tower.type];
       const stats = towerStats(tower.type, tower.level);
       const range = stats.range * (1 + tower.glowBonus) * rangeMul;
-      const damage = stats.damage * (1 + tower.glowBonus);
+      const damage = stats.damage * (1 + tower.glowBonus) * (1 + (mods?.surge ?? 0));
       if (def.aura) {
         tower.auraTimer -= dt;
         if (tower.auraTimer <= 0) {
@@ -378,7 +381,7 @@ export function createTowers(random, fx, glowAt) {
       combo = comboTimer > 0 ? combo + 1 : 1;
       comboTimer = COMBO_WINDOW;
       if (combo >= COMBO_MAX) {
-        if (triggerStarfall(enemies, count)) {
+        if (triggerStarfall(enemies, count, mods?.wave ?? 1)) {
           combo = 0;
           comboTimer = 0;
         } else {
@@ -392,6 +395,8 @@ export function createTowers(random, fx, glowAt) {
 
   return {
     towers, projectiles, place, remove, update, killed, resetCombo,
+    /** Direct damage (abilities): same hit rules as combat, kills land in `killed`. */
+    damage: hitEnemy,
     get combo() { return combo; },
     get starfalls() { return starfalls; },
   };

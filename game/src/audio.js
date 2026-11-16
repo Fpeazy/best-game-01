@@ -58,6 +58,9 @@ export function createAudio() {
       tone(1046, 0.24, 'triangle', 0.12, 0.3);
     },
     boss() { tone(98, 0.5, 'sawtooth', 0.12, 0, 65); tone(147, 0.4, 'sawtooth', 0.08, 0.1, 98); },
+    ability() { tone(784, 0.12, 'triangle', 0.12); tone(1046, 0.18, 'triangle', 0.12, 0.09); },
+    flare() { tone(880, 0.1, 'sine', 0.12, 0, 1320); tone(1174, 0.2, 'sine', 0.1, 0.08); },
+    purr() { tone(262, 0.4, 'sine', 0.08, 0, 330); tone(330, 0.4, 'sine', 0.06, 0.15, 392); },
     phase() { tone(131, 0.3, 'sawtooth', 0.12, 0, 98); tone(98, 0.4, 'sawtooth', 0.12, 0.12, 65); },
     mutator() { tone(587, 0.1, 'sine', 0.1); tone(880, 0.14, 'sine', 0.1, 0.09); },
     win() {

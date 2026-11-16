@@ -198,5 +198,23 @@ export function buildDecor(random) {
     { x: POND.x + 18, y: POND.y + 12, r: 10 },
     { x: POND.x + 52, y: POND.y - 12, r: 9 },
   ];
-  return { stars, tufts, flowers, fireflies, moonflowers, stones, lilyPads };
+  // Cat statues and stone lantern shrines fill the empty middle of the garden
+  // (v4, GLM item 6 + Nemotron 5): fixed spots, all clear of the path, the pond
+  // and the plots, so the field reads as a garden, not a blank lawn.
+  const statues = [
+    { x: 430, y: 285, r: 22 },
+    { x: 790, y: 305, r: 22 },
+  ];
+  const shrines = [
+    { x: 1050, y: 300, r: 16 },
+    { x: 140, y: 540, r: 16 },
+    { x: 620, y: 560, r: 16 },
+  ];
+  const bushes = [];
+  const bushSpots = [[100, 260], [200, 540], [360, 90], [540, 90], [700, 540], [880, 540], [1180, 600]];
+  for (const [x, y] of bushSpots) {
+    if (distanceToPath(x, y) < 46) continue;
+    bushes.push({ x, y, r: 16 + random() * 8 });
+  }
+  return { stars, tufts, flowers, fireflies, moonflowers, stones, lilyPads, statues, shrines, bushes };
 }

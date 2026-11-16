@@ -1,15 +1,12 @@
-// The game's rules and state, with no drawing and no browser in it: coins, lives and
-// score, the build phase and the waves, tower placement and upgrades, enemies marching
-// the path, and the lantern light that dims as lives are lost. step() advances one
-// fixed step and returns what happened as bit flags, so the caller can react — sounds,
-// announcements — without the world knowing about screens or sound. Nothing here
-// allocates after createWorld returns, except the small reused event lists.
-//
-// Three difficulties (Easy, Normal, Hard) scale the bugs and the starting purse.
-// After wave 10 the garden is won — and the Long Night begins, an endless stream
-// with a twist (a mutator) on every night from wave 6 on and a Moth Queen every
-// fifth night. Lantern posts can be upgraded to widen their glow and deepen its bonus.
-import { BUILD_SECONDS, DIFFICULTIES, MAX_POST_LEVEL, MAX_WAVE, MUTATORS, POST_UPGRADE_COST, START_COINS, START_LIVES } from './config.js';
+// The game's rules and state, no drawing and no browser: coins, lives, score,
+// the build phase and the waves, tower placement and upgrades, enemies marching
+// the path, and the lantern light that dims as lives are lost. step() advances
+// one fixed step and returns what happened as bit flags. Nothing here allocates
+// after createWorld returns, except the small reused event lists.
+// Three difficulties scale the bugs and the starting purse. After wave 10 the
+// garden is won — and the Long Night begins, an endless stream with a mutator
+// on every night from wave 6 and a Moth Queen every fifth night.
+import { ABILITIES, ABILITY_ORDER, BOSS_COUNTDOWN, BUILD_SECONDS, DIFFICULTIES, EARLY_CALL_CAP, EARLY_CALL_PER_SEC, FLARE_DAMAGE, FLARE_RADIUS, FLARE_SLOW, FLARE_SLOW_DUR, MAX_POST_LEVEL, MAX_WAVE, MUTATORS, POST_UPGRADE_COST, PURR_DUR, PURR_SLOW, START_COINS, START_LIVES, SURGE_BONUS, SURGE_DUR, TARGET_LABELS, TARGET_MODES } from './config.js';
 import { buildDecor, buildPlots, distanceToPath, glowBonusAt, LANTERN, LANTERN_POSTS } from './garden.js';
 import { createTowers, TOWER_TYPES, upgradeCost } from './towers.js';
 import { createEnemies } from './enemies.js';
@@ -34,6 +31,7 @@ export const EVENT_BOSS = 256;
 export const EVENT_MUTATOR = 512;
 export const EVENT_BOSS_PHASE = 1024;
 export const EVENT_POST = 2048;
+export const EVENT_ABILITY = 4096;
 
 /** The night's mutator as the sim's multipliers (0-effect entries omitted). */
 export function mutatorMods(key) {
@@ -71,6 +69,11 @@ export function createWorld(random) {
     hoverTower: null,
     message: '',
     messageTimer: 0,
+    /** Last wave-clear bonus, shown as short stacked text under the combo
+     * meter (Nemotron Stage 4): the floating "Wave clear!" callout moved
+     * here so the field stays clean for combat numbers. */
+    clearBonus: '',
+    clearBonusTimer: 0,
     bossSpawned: false,
     difficulty: 'normal',
     endless: false,
@@ -80,6 +83,12 @@ export function createWorld(random) {
     festival: 0,
     /** Seconds until the next Festival Cascade firework. */
     cascadeTimer: 0,
+    /** Active abilities: cooldown left per key; surge/purr buff timers. */
+    abilities: { flare: { cd: 0 }, surge: { cd: 0 }, purr: { cd: 0 } },
+    surgeTimer: 0,
+    purrTimer: 0,
+    /** Wave-10 warning countdown before the boss spawns (0 = not counting). */
+    bossCountdown: 0,
   };
   /** The cascade's own tiny PRNG, so firework positions never churn the main
    * random stream the enemy spawns draw from. Reset with the world. */
@@ -118,12 +127,18 @@ export function createWorld(random) {
     state.hoverTower = null;
     state.message = '';
     state.messageTimer = 0;
+    state.clearBonus = '';
+    state.clearBonusTimer = 0;
     state.bossSpawned = false;
     state.endless = false;
     state.mutator = 'none';
     state.postLevels = [1, 1, 1, 1];
     state.festival = 0;
     state.cascadeTimer = 0;
+    state.abilities = { flare: { cd: 0 }, surge: { cd: 0 }, purr: { cd: 0 } };
+    state.surgeTimer = 0;
+    state.purrTimer = 0;
+    state.bossCountdown = 0;
     cascadeSeed = 987654321;
     towers.resetCombo();
     // Mochi, the hero cat, is already on the field: the best-covered plot she can
@@ -156,11 +171,10 @@ export function createWorld(random) {
   }
 
   /**
-   * The Lantern Festival: every 5th wave (and every 5th Long Night) all the
-   * lanterns flare at once — a golden burst at every post and the big lantern,
-   * a shower of sparkles across the garden, a screen flash and a shake punch.
-   * Pure sim state (festival 0..1, decays with sim time), so a screenshot
-   * staged at a festival moment shows exactly what a player sees.
+   * The Lantern Festival: every 5th wave all the lanterns flare at once — a
+   * golden burst at every post and the big lantern, sparkles, a flash and a
+   * shake punch. Pure sim state (festival 0..1), so a screenshot staged at a
+   * festival moment shows exactly what a player sees.
    */
   function triggerFestival(message) {
     state.festival = 1;
@@ -182,6 +196,13 @@ export function createWorld(random) {
 
   function startWave() {
     if (state.phase !== PHASE_BUILD) return false;
+    // Early call (tower-defense skill §7): calling the wave before the build
+    // timer runs out pays +1 coin per second skipped, capped at 10.
+    const earlyBonus = Math.min(EARLY_CALL_CAP, Math.max(0, Math.ceil(state.buildTimer)) * EARLY_CALL_PER_SEC);
+    if (earlyBonus > 0) {
+      state.coins += earlyBonus;
+      state.earned += earlyBonus;
+    }
     state.spawnQueue = waveQueue(state.wave);
     state.spawnTimer = 0.5;
     state.phase = PHASE_WAVE;
@@ -192,9 +213,83 @@ export function createWorld(random) {
     state.message = state.mutator === 'none'
       ? `${label} — ${wavePreview(state.wave)}`
       : `${label} — ${wavePreview(state.wave)} · ${mut.icon} ${mut.name}`;
+    if (earlyBonus > 0) state.message += ` · Early call +${earlyBonus}`;
     state.messageTimer = 3;
+    // Wave 10: a 5-second "BOSS INCOMING" warning before the Shadow Moth spawns.
+    if (state.wave === MAX_WAVE && !state.endless) {
+      state.bossCountdown = BOSS_COUNTDOWN;
+      state.message = `⚠ BOSS INCOMING — the Shadow Moth arrives in ${BOSS_COUNTDOWN}s!`;
+      state.messageTimer = BOSS_COUNTDOWN;
+    }
     if (state.wave % 5 === 0) triggerFestival(`🎆 Lantern Festival! ${label} — the garden blazes with light!`);
     return true;
+  }
+
+  /** Cycle a tower's targeting mode; returns the new mode's label. */
+  function cycleTarget(tower) {
+    if (tower === null || !tower.active) return null;
+    const modes = TARGET_MODES;
+    const next = modes[(modes.indexOf(tower.targetMode ?? 'first') + 1) % modes.length];
+    tower.targetMode = next;
+    return TARGET_LABELS[next];
+  }
+
+  /**
+   * Fire an active ability (Q / E / R, or a top-bar chip). Returns an event
+   * bitmask; 0 when on cooldown or not in a wave. Kills are rewarded inline
+   * (coins, score, kill count) because this runs between sim steps.
+   */
+  function useAbility(key) {
+    const def = ABILITIES[key];
+    if (def === undefined || state.phase !== PHASE_WAVE) return 0;
+    const slot = state.abilities[key];
+    if (slot === undefined || slot.cd > 0) return 0;
+    slot.cd = def.cd;
+    let events = EVENT_ABILITY;
+    if (key === 'flare') {
+      fx.spawnRing(LANTERN.x, LANTERN.y, FLARE_RADIUS, '#ffd166');
+      fx.spawnBurst(LANTERN.x, LANTERN.y, '#ffd166', 24, 180, 0.9, 4);
+      fx.spawnBurst(LANTERN.x, LANTERN.y, '#fff6d8', 14, 120, 0.8, 3);
+      fx.triggerFlash(0.4);
+      fx.addTrauma(0.4);
+      fx.spawnText(LANTERN.x, LANTERN.y - 60, '✦ FLARE BURST!', '#ffd166', 24);
+      const before = towers.killed.length;
+      for (const enemy of enemies.list) {
+        if (!enemy.active) continue;
+        if (Math.hypot(enemy.x - LANTERN.x, enemy.y - LANTERN.y) > FLARE_RADIUS + enemy.radius) continue;
+        enemy.slowUntil = state.elapsed + FLARE_SLOW_DUR;
+        enemy.slowFactor = Math.min(enemy.slowFactor, FLARE_SLOW);
+        towers.damage(enemy, FLARE_DAMAGE, false);
+      }
+      events |= rewardKills(towers.killed.slice(before));
+      towers.killed.length = before;
+    } else if (key === 'surge') {
+      state.surgeTimer = SURGE_DUR;
+      fx.triggerFlash(0.35);
+      fx.addTrauma(0.3);
+      for (const post of LANTERN_POSTS) fx.spawnBurst(post.x, post.y - 18, '#ffd166', 12, 120, 0.8, 3.5);
+      fx.spawnText(LANTERN.x, LANTERN.y - 60, '☀ LANTERN SURGE!', '#ffd166', 24);
+    } else if (key === 'purr') {
+      state.purrTimer = PURR_DUR;
+      fx.spawnRing(LANTERN.x, LANTERN.y, 420, '#b8a7d9');
+      fx.spawnText(LANTERN.x, LANTERN.y - 60, '♪ PURR WAVE!', '#c9a7f2', 24);
+    }
+    return events;
+  }
+
+  /** Reward kills made outside a sim step (abilities): coins, score, count. */
+  function rewardKills(killed) {
+    let events = 0;
+    for (const enemy of killed) {
+      state.kills += 1;
+      state.coins += enemy.reward;
+      state.earned += enemy.reward;
+      state.score += enemy.reward * 10 + state.wave * 2;
+      events |= EVENT_KILL;
+      fx.spawnBurst(enemy.x, enemy.y, '#c9a7f2', 6, 70, 0.4, 2.5);
+      fx.spawnText(enemy.x, enemy.y - enemy.radius - 14, `+${enemy.reward}`, '#ffd166', 20);
+    }
+    return events;
   }
 
   /** Enter the Long Night after the campaign win: endless waves, nights counted. */
@@ -286,7 +381,11 @@ export function createWorld(random) {
     state.score += bonus * 5;
     // The kill chain is broken between waves: no kills, no combo.
     towers.resetCombo();
-    fx.spawnText(LANTERN.x - 40, LANTERN.y - 50, `Wave clear! +${bonus + extra}`, '#ffd166', 20);
+    // No floating "Wave clear!" text (Nemotron Stage 4): the bonus moves to
+    // short stacked text under the combo meter, so the field stays clean for
+    // combat numbers.
+    state.clearBonus = `Wave clear! +${bonus + extra}`;
+    state.clearBonusTimer = 4;
     if (state.wave >= MAX_WAVE && !state.endless) {
       state.phase = PHASE_WON;
       return EVENT_WAVE_CLEAR | EVENT_WIN;
@@ -308,11 +407,18 @@ export function createWorld(random) {
     let events = 0;
     state.elapsed += dt;
     if (state.messageTimer > 0) state.messageTimer = Math.max(0, state.messageTimer - dt);
+    if (state.clearBonusTimer > 0) state.clearBonusTimer = Math.max(0, state.clearBonusTimer - dt);
     if (state.festival > 0) state.festival = Math.max(0, state.festival - dt * 0.12);
-    // Festival Cascade (GLM's idea, visual only): while the garden blazes,
-    // fireworks rain across the field every half second — gold, pink, lavender
-    // — so a festival moment reads as a celebration from edge to edge, not
-    // just a glow at the lanterns. No gameplay effect, so balance is untouched.
+    // Ability cooldowns and buff timers tick on sim time.
+    for (const slot of Object.values(state.abilities)) {
+      slot.cd = Math.max(0, slot.cd - dt);
+      if (slot.cd < 1e-9) slot.cd = 0;
+    }
+    if (state.surgeTimer > 0) state.surgeTimer = Math.max(0, state.surgeTimer - dt);
+    if (state.purrTimer > 0) state.purrTimer = Math.max(0, state.purrTimer - dt);
+    // Festival Cascade: while the garden blazes, fireworks rain across the
+    // field every half second — gold, pink, lavender. Visual only, so balance
+    // is untouched.
     if (state.festival > 0.25) {
       state.cascadeTimer -= dt;
       if (state.cascadeTimer <= 0) {
@@ -332,7 +438,18 @@ export function createWorld(random) {
     }
 
     if (state.phase === PHASE_WAVE) {
-      if (state.spawnQueue.length > 0) {
+      // The boss countdown holds all spawning: nothing marches in while the
+      // "BOSS INCOMING" warning counts down.
+      if (state.bossCountdown > 0) {
+        const was = state.bossCountdown;
+        state.bossCountdown = Math.max(0, state.bossCountdown - dt);
+        state.message = `⚠ BOSS INCOMING — the Shadow Moth arrives in ${Math.ceil(state.bossCountdown)}s!`;
+        state.messageTimer = 1;
+        if (was > 0 && state.bossCountdown === 0) {
+          state.message = 'The Shadow Moth arrives!';
+          state.messageTimer = 2;
+        }
+      } else if (state.spawnQueue.length > 0) {
         state.spawnTimer -= dt;
         if (state.spawnTimer <= 0) {
           const type = state.spawnQueue.shift();
@@ -340,18 +457,36 @@ export function createWorld(random) {
           if (enemy !== null && type === 'boss') {
             state.bossSpawned = true;
             events |= EVENT_BOSS;
+            // Boss entrance (v4 spectacle): the gate erupts — a purple burst,
+            // a gold burst, a shockwave ring, a flash, a shake punch and a big
+            // callout. The arrival must read in a still frame, not just in motion.
+            fx.spawnBurst(enemy.x, enemy.y, '#b48ae0', 24, 160, 0.9, 5);
+            fx.spawnBurst(enemy.x, enemy.y, '#ffd166', 12, 120, 0.7, 4);
+            fx.spawnRing(enemy.x, enemy.y, 180, '#ffd166');
+            fx.triggerFlash(0.35);
+            fx.spawnText(enemy.x, enemy.y - 70, 'THE SHADOW MOTH!', '#ffd166', 28);
             fx.addTrauma(0.6);
           }
           state.spawnTimer += spawnIntervalFor(type, state.wave);
+        }
+      }
+      // Purr Wave: every live bug is slowed while the buff lasts.
+      if (state.purrTimer > 0) {
+        for (const enemy of enemies.list) {
+          if (!enemy.active) continue;
+          enemy.slowUntil = Math.max(enemy.slowUntil, state.elapsed + 0.1);
+          enemy.slowFactor = Math.min(enemy.slowFactor, PURR_SLOW);
         }
       }
       const leaked = enemies.update(dt, state.elapsed, state.wave, DIFFICULTIES[state.difficulty], mutatorMods(state.mutator));
       for (let i = 0; i < enemies.phaseEvents.length; i += 1) {
         const { enemy, phase } = enemies.phaseEvents[i];
         events |= EVENT_BOSS_PHASE;
+        // Short banners (v4 fix): the v3 messages were long enough to run off
+        // the panel and overlap the boss bar. Two short lines, on a pill.
         state.message = phase === 3
-          ? 'The Shadow Moth takes flight! Only fish tossers, star gazers and veteran cats can reach it!'
-          : 'The Shadow Moth grows angry — it moves faster and sheds more bugs!';
+          ? 'Phase 3 — it flies! Only fish & star cats can hit it!'
+          : 'Phase 2 — the Moth grows angry!';
         state.messageTimer = 3;
         // A phase change is a spectacle beat: the lanterns flare again, the
         // boss bursts with light, a hit-stop punch.
@@ -377,7 +512,7 @@ export function createWorld(random) {
           events |= EVENT_OVER;
         }
       }
-      const killed = towers.update(dt, enemies.list, enemies.list.length, state.elapsed, mutatorMods(state.mutator));
+      const killed = towers.update(dt, enemies.list, enemies.list.length, state.elapsed, { ...mutatorMods(state.mutator), surge: state.surgeTimer > 0 ? SURGE_BONUS : 0, wave: state.wave });
       for (let i = 0; i < killed.length; i += 1) {
         const enemy = killed[i];
         state.kills += 1;
@@ -388,7 +523,7 @@ export function createWorld(random) {
         }
         events |= EVENT_KILL;
         fx.spawnBurst(enemy.x, enemy.y, '#c9a7f2', 6, 70, 0.4, 2.5);
-        fx.spawnText(enemy.x, enemy.y - enemy.radius - 14, `+${enemy.reward}`, '#ffd166');
+        fx.spawnText(enemy.x, enemy.y - enemy.radius - 14, `+${enemy.reward}`, '#ffd166', 20);
       }
       if (!harmless && state.phase === PHASE_WAVE && state.spawnQueue.length === 0) {
         let anyAlive = false;
@@ -405,6 +540,6 @@ export function createWorld(random) {
   return {
     state, plots, decor, fx, towers, enemies, reset, step,
     lightLevel, startWave, placeTower, upgradeTower, sellTower, upgradePost,
-    setDifficulty, startEndless, waveLabel,
+    setDifficulty, startEndless, waveLabel, useAbility, cycleTarget,
   };
 }

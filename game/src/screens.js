@@ -16,8 +16,10 @@ export const DIFF_BUTTONS = [
   { key: 'hard', rect: { x: 760, y: 506, width: 200, height: 44 } },
 ];
 
-function panel(ctx, text, x, y, w, h) {
-  ctx.fillStyle = 'rgba(20, 14, 36, 0.72)';
+/** Darken the whole field, then draw the panel. `dim` is the overlay alpha —
+ * the title uses a lighter dim (0.55) so the lit garden shows through. */
+function panel(ctx, text, x, y, w, h, dim = 0.72) {
+  ctx.fillStyle = `rgba(20, 14, 36, ${dim})`;
   ctx.fillRect(0, 0, FIELD.width, FIELD.height);
   ctx.fillStyle = 'rgba(28, 24, 48, 0.94)';
   ctx.beginPath();
@@ -38,19 +40,30 @@ function button(ctx, textFn, rect, label, sub) {
 }
 
 export function drawTitle(ctx, textFn, drawCat, world, best) {
-  panel(ctx, textFn, 290, 70, 700, 560);
+  // Lighter dim so the garden reads through, then a warm lantern halo ringing
+  // the panel (v4, Nemotron Stage 5): the title must read instantly.
+  panel(ctx, textFn, 290, 70, 700, 560, 0.55);
+  const halo = ctx.createRadialGradient(640, 350, 60, 640, 350, 480);
+  halo.addColorStop(0, 'rgba(255, 209, 102, 0)');
+  halo.addColorStop(0.6, 'rgba(255, 209, 102, 0.06)');
+  halo.addColorStop(0.8, 'rgba(255, 209, 102, 0.16)');
+  halo.addColorStop(1, 'rgba(255, 209, 102, 0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, FIELD.width, FIELD.height);
   textFn("Mochi's", 640, 170, 64, '#ffd166', 'center', true);
   textFn('Lantern Garden', 640, 232, 64, PALETTE.text, 'center', true);
   textFn('A cute tower defense', 640, 272, 20, PALETTE.muted, 'center');
-  // Mochi asleep on the panel, dreaming of yarn.
-  drawCat(640, 340, 40, TOWER_TYPES.mochi, 1, 0, 0, true);
-  textFn('Z', 696, 300, 22, PALETTE.muted, 'center', true);
-  textFn('z', 712, 316, 17, PALETTE.muted, 'center', true);
-  textFn('z', 724, 334, 13, PALETTE.muted, 'center', true);
+  // Mochi asleep on the panel, dreaming of yarn — bigger, so he reads first.
+  drawCat(640, 342, 48, TOWER_TYPES.mochi, 1, 0, 0, true);
+  textFn('Z', 706, 296, 22, PALETTE.muted, 'center', true);
+  textFn('z', 722, 312, 17, PALETTE.muted, 'center', true);
+  textFn('z', 734, 330, 13, PALETTE.muted, 'center', true);
   textFn('Shadow bugs are marching on the big lantern!', 640, 410, 17, PALETTE.text, 'center');
   textFn('Place cat towers on the plots, earn coins, survive 10 waves.', 640, 434, 17, PALETTE.text, 'center');
-  textFn('Towers in lantern glow fight up to 50% better. Click a plot to build.', 640, 458, 15, PALETTE.muted, 'center');
-  textFn('Difficulty', 640, 494, 15, PALETTE.muted, 'center', true);
+  // WIN/LOSE and hotkeys demoted to secondary hierarchy (Nemotron Stage 5):
+  // smaller, softer — the logo and the cat own the first glance.
+  textFn('WIN: survive 10 waves · LOSE: the lantern falls', 640, 458, 12, 'rgba(255, 209, 102, 0.8)', 'center');
+  textFn('Q/E/R: Flare, Surge, Purr · T: change a tower target · 1-6: pick a tower', 640, 482, 11, PALETTE.muted, 'center');
   for (const buttonDef of DIFF_BUTTONS) {
     const diff = DIFFICULTIES[buttonDef.key];
     const selected = world.state.difficulty === buttonDef.key;
@@ -77,7 +90,8 @@ export function drawPaused(ctx, textFn) {
 
 export function drawWin(ctx, textFn, world, best) {
   panel(ctx, textFn, 290, 80, 700, 520);
-  textFn('The garden blooms!', 640, 190, 52, '#ffd166', 'center', true);
+  textFn('★ YOU WIN ★', 640, 138, 26, '#ffd166', 'center', true);
+  textFn('The garden blooms!', 640, 205, 48, '#ffd166', 'center', true);
   textFn('Mochi held the garden through all 10 waves.', 640, 236, 19, PALETTE.text, 'center');
   textFn('The shadow bugs have gone home. The cats are very proud.', 640, 264, 19, PALETTE.text, 'center');
   textFn(`Score  ${world.state.score}`, 640, 340, 30, PALETTE.text, 'center', true);
@@ -89,7 +103,8 @@ export function drawWin(ctx, textFn, world, best) {
 
 export function drawOver(ctx, textFn, world, best) {
   panel(ctx, textFn, 290, 110, 700, 440);
-  textFn('The lantern went dark…', 640, 210, 52, '#ff8a9a', 'center', true);
+  textFn('✖ YOU LOSE ✖', 640, 155, 26, '#ff8a9a', 'center', true);
+  textFn('The lantern went dark…', 640, 220, 48, '#ff8a9a', 'center', true);
   textFn('The shadow bugs reached the big lantern and blew it out.', 640, 256, 19, PALETTE.text, 'center');
   textFn('Mochi is already plotting a comeback.', 640, 284, 19, PALETTE.text, 'center');
   textFn(`Score  ${world.state.score}`, 640, 360, 30, PALETTE.text, 'center', true);

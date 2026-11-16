@@ -16,6 +16,10 @@ export const ACTION_TOWER_4 = 512;
 export const ACTION_TOWER_5 = 1024;
 export const ACTION_TOWER_6 = 2048;
 export const ACTION_LONGNIGHT = 4096;
+export const ACTION_ABILITY_FLARE = 8192;
+export const ACTION_ABILITY_SURGE = 16384;
+export const ACTION_ABILITY_PURR = 32768;
+export const ACTION_TARGET_CYCLE = 65536;
 
 const CONFIRM = new Set(['Space', 'Enter']);
 const PAUSE = new Set(['KeyP', 'Escape']);
@@ -24,6 +28,8 @@ const MUTE = new Set(['KeyM']);
 const UPGRADE = new Set(['KeyU']);
 const SELL = new Set(['KeyX', 'Backspace']);
 const LONGNIGHT = new Set(['KeyL']);
+const ABILITY_KEYS = { KeyQ: ACTION_ABILITY_FLARE, KeyE: ACTION_ABILITY_SURGE, KeyR: ACTION_ABILITY_PURR };
+const TARGET_CYCLE = new Set(['KeyT']);
 const TOWER_KEYS = { Digit1: ACTION_TOWER_1, Digit2: ACTION_TOWER_2, Digit3: ACTION_TOWER_3, Digit4: ACTION_TOWER_4, Digit5: ACTION_TOWER_5, Digit6: ACTION_TOWER_6 };
 
 export function createInput(canvas, toField) {
@@ -45,6 +51,10 @@ export function createInput(canvas, toField) {
       if (!event.repeat) actions |= ACTION_SELL;
     } else if (LONGNIGHT.has(event.code)) {
       if (!event.repeat) actions |= ACTION_LONGNIGHT;
+    } else if (ABILITY_KEYS[event.code] !== undefined) {
+      if (!event.repeat) actions |= ABILITY_KEYS[event.code];
+    } else if (TARGET_CYCLE.has(event.code)) {
+      if (!event.repeat) actions |= ACTION_TARGET_CYCLE;
     } else if (TOWER_KEYS[event.code] !== undefined) {
       if (!event.repeat) actions |= TOWER_KEYS[event.code];
     } else return;

@@ -46,24 +46,53 @@ export const MUTATORS = {
 export const MUTATOR_KEYS = ['fog', 'speedy', 'armored', 'bounty'];
 
 /** How many enemies, projectiles and particles can exist at once; pools are allocated once. */
-export const POOL = { enemies: 128, projectiles: 160, particles: 256, texts: 48 };
+export const POOL = { enemies: 128, projectiles: 160, particles: 256, texts: 64 };
+
+/** The three active abilities (hotkeys Q / E / R, or click the top-bar chips). */
+export const ABILITIES = {
+  flare: { key: 'flare', name: 'Flare Burst', hotkey: 'Q', icon: '✦', cd: 25, desc: 'A burst of lantern light around the big lantern: 120 damage + slow' },
+  surge: { key: 'surge', name: 'Lantern Surge', hotkey: 'E', icon: '☀', cd: 30, desc: 'Every tower +50% damage for 6s — the garden blazes' },
+  purr: { key: 'purr', name: 'Purr Wave', hotkey: 'R', icon: '♪', cd: 20, desc: 'Sleepy Guard purrs across the garden: all bugs slowed 50% for 4s' },
+};
+export const ABILITY_ORDER = ['flare', 'surge', 'purr'];
+export const FLARE_DAMAGE = 120;
+export const FLARE_RADIUS = 230;
+export const FLARE_SLOW = 0.5;
+export const FLARE_SLOW_DUR = 3;
+export const SURGE_BONUS = 0.5;
+export const SURGE_DUR = 6;
+export const PURR_SLOW = 0.5;
+export const PURR_DUR = 4;
+
+/** Per-tower targeting priorities (tower-defense skill §2); 'first' is the default. */
+export const TARGET_MODES = ['first', 'strongest', 'weakest', 'closest', 'last'];
+export const TARGET_LABELS = {
+  first: 'First', strongest: 'Strongest', weakest: 'Weakest', closest: 'Closest', last: 'Last',
+};
+
+/** Coins for calling a wave early: +1 per second of build time skipped, capped. */
+export const EARLY_CALL_PER_SEC = 1;
+export const EARLY_CALL_CAP = 10;
+
+/** Seconds of "BOSS INCOMING" warning before the Shadow Moth spawns on wave 10. */
+export const BOSS_COUNTDOWN = 5;
 
 export const PALETTE = {
-  backdrop: '#1c1830',
-  skyTop: '#2b2440',
-  skyBottom: '#4a3560',
+  backdrop: '#0b0c1a',
+  skyTop: '#0b0c1a',
+  skyBottom: '#241c44',
   moon: '#ffe9b0',
   star: '#fff6d8',
-  grass: '#5da273',
-  grassDark: '#4d8f63',
-  grassLight: '#79b984',
+  grass: '#2a5240',
+  grassDark: '#1d3d2e',
+  grassLight: '#3f7a56',
   flower: '#f2a7c3',
   flower2: '#ffd166',
-  path: '#e8d5a8',
-  pathEdge: '#c9ae7d',
-  plot: '#6b9e75',
-  plotEdge: '#4a7c59',
-  panel: 'rgba(28, 24, 48, 0.88)',
+  path: '#d9c48f',
+  pathEdge: '#a8895f',
+  plot: '#2f5d43',
+  plotEdge: '#1d3d2e',
+  panel: 'rgba(16, 14, 32, 0.92)',
   panelEdge: '#6b5a8e',
   text: '#fff6e8',
   muted: '#c9b8e8',

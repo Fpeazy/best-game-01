@@ -1,9 +1,8 @@
-// The shadow bugs: definitions, per-wave scaling, movement along the path (or, for the
-// flutter moths, straight through the air at the lantern), and the boss's three phases
-// and spawns. Movement is waypoint steering on the garden path — no pathfinding needed,
-// the path is fixed — with a stuck guard: an enemy that cannot advance leaks and is
-// removed. The Shadow Moth changes phase as it loses health: angry at 66%, then it
-// takes flight below 33%; the Moth Queen of the Long Night flies from the start.
+// The shadow bugs: definitions, per-wave scaling, movement along the path (or,
+// for the flutter moths, straight through the air at the lantern), and the
+// boss's three phases and spawns. Waypoint steering on the fixed garden path,
+// with a stuck guard: an enemy that cannot advance leaks. The Shadow Moth
+// changes phase as it loses health: angry at 66%, flying below 33%.
 import { MAX_WAVE, POOL } from './config.js';
 import { LANTERN, PATH_POINTS, pathLength, pointAlongPath } from './garden.js';
 
@@ -12,7 +11,7 @@ export const ENEMY_TYPES = {
   zip: { name: 'Zip Bug', hp: 16, speed: 112, reward: 5, lives: 1, radius: 9, armor: 0, flying: false },
   beetle: { name: 'Shell Beetle', hp: 120, speed: 36, reward: 10, lives: 1, radius: 15, armor: 4, flying: false },
   moth: { name: 'Flutter Moth', hp: 38, speed: 76, reward: 7, lives: 1, radius: 12, armor: 0, flying: true },
-  boss: { name: 'Shadow Moth', hp: 2400, speed: 30, reward: 120, lives: 3, radius: 46, armor: 2, flying: false, spawns: true },
+  boss: { name: 'Shadow Moth', hp: 2400, speed: 30, reward: 120, lives: 3, radius: 56, armor: 2, flying: false, spawns: true },
   queen: { name: 'Moth Queen', hp: 1200, speed: 40, reward: 80, lives: 2, radius: 30, armor: 1, flying: true, spawns: true },
 };
 

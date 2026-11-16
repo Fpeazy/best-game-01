@@ -1,7 +1,7 @@
-// The deterministic screenshot scenes behind ?shot=title|play|boss|win. Each one plays
-// the real rules forward from a fresh world for a fixed number of steps, steered by a
-// simple autopilot (buy the best plots first, upgrade the hero, start every wave), so
-// the frame is what a real game looks like and the same seed always gives the same frame.
+// Deterministic screenshot scenes behind ?shot=title|play|boss|win. Each plays
+// the real rules forward from a fresh world, steered by a simple autopilot
+// (best plots first, upgrade the hero, start every wave), so the frame is what
+// a real game looks like and the same seed always gives the same frame.
 import { STEP } from './config.js';
 import { MAX_POST_LEVEL, POST_UPGRADE_COST } from './config.js';
 import { LANTERN_POSTS } from './garden.js';
@@ -103,15 +103,6 @@ function countAlive(world) {
   return n;
 }
 
-/** How far along the path the furthest living bug has got (0..1). */
-function leadProgress(world) {
-  let best = 0;
-  for (const enemy of world.enemies.list) {
-    if (enemy.active && enemy.progress > best) best = enemy.progress;
-  }
-  return best;
-}
-
 function bossOf(world) {
   for (const enemy of world.enemies.list) {
     if (enemy.active && enemy.type === 'boss') return enemy;
@@ -154,32 +145,34 @@ export function stageShot(name, world) {
     world.state.coins = 150;
     world.startWave();
     for (let i = 0; i < 5 / STEP; i += 1) world.step(STEP, true);
+    // Full festival flare behind the panel (Nemotron Stage 5): the title
+    // backdrop must glow, not sit dim behind the panel.
+    world.state.festival = 1;
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
-    // Wave 10 at the festival's peak: the boss in its angry second phase, the
-    // lanterns flaring, a dense escort stream — the frame must read as a
-    // battle at thumbnail size, not a calm garden. The phase change itself
-    // re-flares the festival to 1.0, and the slower decay keeps it above 0.5
-    // for ~4s, so the moment is caught, not missed. Six or more bugs alive
-    // keeps the frame dense.
+    // Wave 10 at the festival's peak: boss in phase 2+, lanterns flaring, a
+    // dense escort stream — the frame must read as a battle at thumbnail size.
     runUntil(world, (state) => {
       if (state.phase !== PHASE_WAVE || state.wave !== 10) return false;
       const boss = bossOf(world);
       return boss !== null && boss.phase >= 2 && state.festival > 0.5 && countAlive(world) >= 6 && countTowers(world) >= 7;
     });
+    // Fire the Flare Burst for the cover: a gold burst at the lantern, big
+    // damage numbers in the air — the frame must read as a battle.
+    if (world.state.phase === PHASE_WAVE) world.useAbility('flare');
     const over = world.state.phase === PHASE_LOST;
     return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
   }
   if (name === 'boss') {
     // The boss in its final, flying phase: red eyes, crown, straight at the
-    // lantern with its moth escort — the most dramatic single moment in the
-    // game, and a different frame from the play shot by construction (phase 3
-    // only starts once the boss is below a third of its health).
+    // lantern with its moth escort — the most dramatic single moment.
     runUntil(world, () => {
       const boss = bossOf(world);
       return boss !== null && boss.phase === 3 && boss.progress > 0.1 && countAlive(world) >= 2;
     });
+    // Lantern Surge for the boss shot: every tower blazing gold as the Moth flies.
+    if (world.state.phase === PHASE_WAVE) world.useAbility('surge');
     const over = world.state.phase === PHASE_LOST;
     return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
   }

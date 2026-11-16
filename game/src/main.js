@@ -1,22 +1,23 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s
-// steps (several in a slow frame, none in a fast one, doubled at 2x speed), and the
-// renderer paints what is there. The game moves between five screens: title, play,
-// paused, win and game over.
+// Boot and the one loop: input is read every frame, the world advances in fixed
+// 1/60 s steps (several in a slow frame, none in a fast one, doubled at 2x speed),
+// and the renderer paints what is there. Five screens: title, play, paused,
+// win and game over.
 //
-// ?seed=N fixes the bug pattern. ?shot=title|play|boss|win (with &seed=N) stages that
-// scene instead of running the loop, paints it twice and sets window.__shotReady for
-// a screenshot.
+// ?seed=N fixes the bug pattern. ?shot=title|play|boss|win (with &seed=N) stages
+// that scene instead of running the loop, paints it twice and sets
+// window.__shotReady for a screenshot.
 import { BEST_KEY, STEP } from './config.js';
 import { createRandom } from './random.js';
 import {
   EVENT_BOSS, EVENT_BOSS_PHASE, EVENT_KILL, EVENT_LEAK, EVENT_MUTATOR, EVENT_OVER,
   EVENT_PLACE, EVENT_POST, EVENT_SELL, EVENT_UPGRADE, EVENT_WAVE_CLEAR, EVENT_WIN,
-  PHASE_BUILD, createWorld,
+  EVENT_ABILITY, PHASE_BUILD, createWorld,
 } from './world.js';
 import {
   ACTION_CONFIRM, ACTION_LONGNIGHT, ACTION_MUTE, ACTION_PAUSE, ACTION_SELL, ACTION_SPEED,
   ACTION_TOWER_1, ACTION_TOWER_2, ACTION_TOWER_3, ACTION_TOWER_4, ACTION_TOWER_5,
-  ACTION_TOWER_6, ACTION_UPGRADE, createInput,
+  ACTION_TOWER_6, ACTION_UPGRADE, ACTION_ABILITY_FLARE, ACTION_ABILITY_SURGE,
+  ACTION_ABILITY_PURR, ACTION_TARGET_CYCLE, createInput,
 } from './input.js';
 import { createAudio } from './audio.js';
 import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_WIN } from './render.js';
@@ -126,6 +127,7 @@ function runGame() {
     if (events & EVENT_BOSS) audio.boss();
     if (events & EVENT_BOSS_PHASE) audio.phase();
     if (events & EVENT_MUTATOR) audio.mutator();
+    if (events & EVENT_ABILITY) audio.ability();
     if (events & EVENT_PLACE) audio.place();
     if (events & EVENT_UPGRADE) audio.upgrade();
     if (events & EVENT_POST) audio.upgrade();
@@ -177,6 +179,13 @@ function runGame() {
       return;
     }
     if (screen !== SCREEN_PLAY) return;
+    if (actions & ACTION_ABILITY_FLARE) handleEvents(world.useAbility('flare'));
+    if (actions & ACTION_ABILITY_SURGE) handleEvents(world.useAbility('surge'));
+    if (actions & ACTION_ABILITY_PURR) handleEvents(world.useAbility('purr'));
+    if (actions & ACTION_TARGET_CYCLE && world.state.selected !== null) {
+      const label = world.cycleTarget(world.state.selected);
+      if (label !== null) announce(`Target: ${label}.`);
+    }
     for (let i = 0; i < towerKeys.length; i += 1) {
       if (actions & towerKeys[i]) {
         world.state.placing = world.state.placing === towerTypes[i] ? null : towerTypes[i];
@@ -232,6 +241,15 @@ function runGame() {
       if (hit.name === 'pause') screen = SCREEN_PAUSED;
       else if (hit.name === 'speed') speed = speed === 1 ? 2 : 1;
       else if (hit.name === 'mute') audio.toggleMute();
+      return;
+    }
+    if (hit.kind === 'ability') {
+      handleEvents(world.useAbility(hit.key));
+      return;
+    }
+    if (hit.kind === 'target' && world.state.selected !== null) {
+      const label = world.cycleTarget(world.state.selected);
+      if (label !== null) announce(`Target: ${label}.`);
       return;
     }
     if (hit.kind === 'startWave') {
