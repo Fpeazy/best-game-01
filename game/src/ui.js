@@ -2,15 +2,16 @@
 // and the selected-tower panel. One place owns every rectangle, so the renderer and
 // the click handler can never disagree about where a button is.
 import { LAYOUT } from './config.js';
+import { LANTERN_POSTS } from './garden.js';
 import { TOWER_TYPES } from './towers.js';
 
-export const SHOP_ORDER = ['yarn', 'fish', 'sleepy', 'mochi'];
+export const SHOP_ORDER = ['yarn', 'fish', 'sleepy', 'star', 'frosty', 'mochi'];
 
-/** The four shop cards, left to right across the bottom bar. */
+/** The six shop cards, left to right across the bottom bar. */
 export function shopCards() {
   const cards = [];
   const bar = LAYOUT.shopBar;
-  const startX = 16;
+  const startX = 12;
   for (let i = 0; i < SHOP_ORDER.length; i += 1) {
     const type = SHOP_ORDER[i];
     cards.push({
@@ -27,14 +28,27 @@ export function shopCards() {
   return cards;
 }
 
-/** The selected-tower panel sits right of the shop cards. */
+/** The selected-tower (or lantern-post) panel sits right of the shop cards. */
 export function selectedPanelRect() {
-  return { x: 852, y: LAYOUT.shopBar.y + 8, width: 248, height: LAYOUT.cardHeight };
+  return { x: 948, y: LAYOUT.shopBar.y + 8, width: 186, height: LAYOUT.cardHeight };
+}
+
+/** The upgrade and sell buttons inside the selected-tower panel (shared with the renderer). */
+export function selectedUpgradeRect(panel) {
+  return { x: panel.x + 40, y: panel.y + 50, width: 68, height: 20 };
+}
+export function selectedSellRect(panel) {
+  return { x: panel.x + 114, y: panel.y + 50, width: 64, height: 20 };
+}
+
+/** The upgrade button inside the selected-post panel. */
+export function postUpgradeRect(panel) {
+  return { x: panel.x + 8, y: panel.y + 46, width: 170, height: 24 };
 }
 
 /** The start-wave button, far right of the bottom bar. */
 export function startWaveRect() {
-  return { x: 1116, y: LAYOUT.shopBar.y + 8, width: 148, height: LAYOUT.cardHeight };
+  return { x: 1142, y: LAYOUT.shopBar.y + 8, width: 126, height: LAYOUT.cardHeight };
 }
 
 /** The top bar's pause / speed / mute buttons, far right. */
@@ -55,8 +69,8 @@ function inside(x, y, rect) {
 
 /**
  * What a click at field coordinates (x, y) hit: a shop card, a plot, a placed tower,
- * a top-bar button, the start-wave button, or the selected panel's upgrade/sell
- * buttons. Returns null when it hit nothing clickable.
+ * a lantern post, a top-bar button, the start-wave button, or the selected panel's
+ * upgrade/sell buttons. Returns null when it hit nothing clickable.
  */
 export function hitTest(x, y, world) {
   const buttons = topButtons();
@@ -69,11 +83,17 @@ export function hitTest(x, y, world) {
   }
   const panel = selectedPanelRect();
   if (world.state.selected !== null && inside(x, y, panel)) {
-    const upgradeRect = { x: panel.x + 128, y: panel.y + 10, width: 108, height: 28 };
-    const sellRect = { x: panel.x + 128, y: panel.y + 42, width: 108, height: 28 };
-    if (inside(x, y, upgradeRect)) return { kind: 'upgrade' };
-    if (inside(x, y, sellRect)) return { kind: 'sell' };
+    if (inside(x, y, selectedUpgradeRect(panel))) return { kind: 'upgrade' };
+    if (inside(x, y, selectedSellRect(panel))) return { kind: 'sell' };
     return { kind: 'panel' };
+  }
+  if (world.state.selectedPost !== null && inside(x, y, panel)) {
+    if (inside(x, y, postUpgradeRect(panel))) return { kind: 'postUpgrade' };
+    return { kind: 'panel' };
+  }
+  for (let i = 0; i < LANTERN_POSTS.length; i += 1) {
+    const post = LANTERN_POSTS[i];
+    if (Math.hypot(x - post.x, y - post.y) <= 34) return { kind: 'post', index: i };
   }
   for (let i = 0; i < world.plots.length; i += 1) {
     const plot = world.plots[i];

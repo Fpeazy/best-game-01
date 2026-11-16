@@ -58,6 +58,8 @@ export function createAudio() {
       tone(1046, 0.24, 'triangle', 0.12, 0.3);
     },
     boss() { tone(98, 0.5, 'sawtooth', 0.12, 0, 65); tone(147, 0.4, 'sawtooth', 0.08, 0.1, 98); },
+    phase() { tone(131, 0.3, 'sawtooth', 0.12, 0, 98); tone(98, 0.4, 'sawtooth', 0.12, 0.12, 65); },
+    mutator() { tone(587, 0.1, 'sine', 0.1); tone(880, 0.14, 'sine', 0.1, 0.09); },
     win() {
       [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, 0.2, 'triangle', 0.12, i * 0.12));
     },

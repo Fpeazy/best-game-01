@@ -2,7 +2,7 @@
 // lantern posts whose glow empowers nearby towers, and the big paper lantern at the end.
 // Nothing here depends on the browser; the same fixed map is used by the sim, the
 // renderer and the headless playtest.
-import { FIELD } from './config.js';
+import { FIELD, POST_LEVELS } from './config.js';
 
 /** The path as waypoints, from the garden gate (off the left edge) to the big lantern. */
 export const PATH_POINTS = [
@@ -26,6 +26,9 @@ export const LANTERN_POSTS = [
   { x: 790, y: 128 },
   { x: 1090, y: 522 },
 ];
+
+/** The moonflower pond in the top-right corner, with lily pads and stones. */
+export const POND = { x: 1090, y: 118, rx: 95, ry: 42 };
 
 export const PATH_WIDTH = 44;
 
@@ -100,6 +103,8 @@ export function buildPlots() {
       if (x < 50 || x > 1230 || y < 92 || y > 606) continue;
       if (distanceToPath(x, y) < 62) continue;
       if (Math.hypot(x - LANTERN.x, y - LANTERN.y) < 84) continue;
+      // Keep the moonflower pond clear.
+      if (((x - POND.x) / (POND.rx + 40)) ** 2 + ((y - POND.y) / (POND.ry + 40)) ** 2 < 1) continue;
       let nearPost = false;
       for (const post of LANTERN_POSTS) {
         if (Math.hypot(x - post.x, y - post.y) < 58) { nearPost = true; break; }
@@ -119,12 +124,26 @@ export function buildPlots() {
   return plots.slice(0, 16);
 }
 
-/** True when a tower on this plot stands inside a lantern post's glow. */
-export function inLanternGlow(x, y, radius) {
-  for (const post of LANTERN_POSTS) {
-    if (Math.hypot(x - post.x, y - post.y) <= radius) return true;
+/** The lantern-light bonus at a point, from the posts' levels (0 outside every glow). */
+export function glowBonusAt(x, y, levels) {
+  let best = 0;
+  for (let i = 0; i < LANTERN_POSTS.length; i += 1) {
+    const post = LANTERN_POSTS[i];
+    const level = levels?.[i] ?? 1;
+    const def = POST_LEVELS[Math.max(1, Math.min(POST_LEVELS.length, level)) - 1];
+    if (Math.hypot(x - post.x, y - post.y) <= def.radius) best = Math.max(best, def.damageBonus);
   }
-  return false;
+  return best;
+}
+
+/** True when a tower on this plot stands inside a lantern post's glow. */
+export function inLanternGlow(x, y, levels) {
+  return glowBonusAt(x, y, levels) > 0;
+}
+
+/** The glow radius of a lantern post at a level. */
+export function postGlowRadius(level) {
+  return POST_LEVELS[Math.max(1, Math.min(POST_LEVELS.length, level)) - 1].radius;
 }
 
 /** Fixed, seeded-looking decoration: stars, grass tufts and flowers, placed once. */
@@ -134,7 +153,7 @@ export function buildDecor(random) {
     stars.push({ x: random() * FIELD.width, y: random() * 200, r: 0.8 + random() * 1.6, tw: random() * Math.PI * 2 });
   }
   const tufts = [];
-  for (let i = 0; i < 90; i += 1) {
+  for (let i = 0; i < 120; i += 1) {
     const x = 20 + random() * (FIELD.width - 40);
     const y = 70 + random() * 540;
     if (distanceToPath(x, y) < 40) continue;
@@ -142,12 +161,42 @@ export function buildDecor(random) {
     tufts.push({ x, y, s: 0.7 + random() * 0.9 });
   }
   const flowers = [];
-  for (let i = 0; i < 46; i += 1) {
+  for (let i = 0; i < 70; i += 1) {
     const x = 20 + random() * (FIELD.width - 40);
     const y = 70 + random() * 540;
     if (distanceToPath(x, y) < 36) continue;
     if (Math.hypot(x - LANTERN.x, y - LANTERN.y) < 60) continue;
     flowers.push({ x, y, color: i % 3 === 0 ? '#f2a7c3' : i % 3 === 1 ? '#ffd166' : '#c9a7f2', r: 3 + random() * 2.5 });
   }
-  return { stars, tufts, flowers };
+  // Fireflies: a grove over the moonflower pond, and a few drifting through the garden.
+  const fireflies = [];
+  for (let i = 0; i < 9; i += 1) {
+    fireflies.push({
+      x: POND.x - 60 + random() * 130, y: POND.y - 24 + random() * 60,
+      phase: random() * Math.PI * 2, amp: 6 + random() * 10, speed: 0.4 + random() * 0.6,
+    });
+  }
+  for (let i = 0; i < 6; i += 1) {
+    fireflies.push({
+      x: 120 + random() * 1000, y: 90 + random() * 480,
+      phase: random() * Math.PI * 2, amp: 5 + random() * 8, speed: 0.3 + random() * 0.5,
+    });
+  }
+  // Moonflowers blooming around the pond, and smooth stones at its edge.
+  const moonflowers = [
+    { x: POND.x - 78, y: POND.y + 26, r: 7 },
+    { x: POND.x + 62, y: POND.y - 30, r: 6 },
+    { x: POND.x + 30, y: POND.y + 34, r: 6 },
+  ];
+  const stones = [
+    { x: POND.x - 96, y: POND.y - 6, r: 8 },
+    { x: POND.x + 88, y: POND.y + 12, r: 6 },
+    { x: POND.x - 20, y: POND.y - 44, r: 5 },
+  ];
+  const lilyPads = [
+    { x: POND.x - 34, y: POND.y - 6, r: 12 },
+    { x: POND.x + 18, y: POND.y + 12, r: 10 },
+    { x: POND.x + 52, y: POND.y - 12, r: 9 },
+  ];
+  return { stars, tufts, flowers, fireflies, moonflowers, stones, lilyPads };
 }

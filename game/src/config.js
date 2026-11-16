@@ -7,6 +7,13 @@ export const FIELD = { width: 1280, height: 720 };
 /** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
 export const STEP = 1 / 60;
 
+/** The three difficulties, picked on the title screen (Easy, Normal or Hard). */
+export const DIFFICULTIES = {
+  easy: { name: 'Easy', desc: 'Relaxed — a cosy evening', hp: 0.8, speed: 0.9, coins: 200, lives: 12, interest: 0.12, build: 18 },
+  normal: { name: 'Normal', desc: 'The garden as intended', hp: 1, speed: 1, coins: 150, lives: 10, interest: 0.1, build: 15 },
+  hard: { name: 'Hard', desc: 'The bugs are hungry', hp: 1.25, speed: 1.08, coins: 120, lives: 8, interest: 0.08, build: 12 },
+};
+
 export const START_COINS = 150;
 export const START_LIVES = 10;
 export const MAX_WAVE = 10;
@@ -18,11 +25,28 @@ export const INTEREST_CAP = 30;
 /** Where the best score is kept between visits (this browser only). */
 export const BEST_KEY = 'mochi-lantern-garden.best';
 
-/** Lantern-light bonus for towers standing inside a lantern's glow. */
+/** Lantern-light bonus for towers standing inside a lantern's glow, per post level. */
 export const LIGHT = { radius: 150, rangeBonus: 0.25, damageBonus: 0.25 };
+export const POST_LEVELS = [
+  { radius: 150, rangeBonus: 0.25, damageBonus: 0.25 },
+  { radius: 170, rangeBonus: 0.35, damageBonus: 0.35 },
+  { radius: 190, rangeBonus: 0.5, damageBonus: 0.5 },
+];
+export const POST_UPGRADE_COST = [25, 50];
+export const MAX_POST_LEVEL = 3;
+
+/** One twist per wave from wave 6 on (and every Long Night wave), picked by wave number. */
+export const MUTATORS = {
+  none: { name: 'Calm Night', short: 'Calm', icon: '🌙', desc: 'No twist tonight' },
+  fog: { name: 'Thick Fog', short: 'Fog', icon: '🌫', desc: 'Towers see 15% less far; moths fly slower' },
+  speedy: { name: 'Speedy Bugs', short: 'Speedy', icon: '💨', desc: 'Bugs 25% faster, +2 coins each' },
+  armored: { name: 'Armored Swarm', short: 'Armored', icon: '🛡', desc: 'Bugs +3 armour, +3 coins each' },
+  bounty: { name: 'Bountiful Night', short: 'Bounty', icon: '✨', desc: 'Bugs +50% reward, +15% health' },
+};
+export const MUTATOR_KEYS = ['fog', 'speedy', 'armored', 'bounty'];
 
 /** How many enemies, projectiles and particles can exist at once; pools are allocated once. */
-export const POOL = { enemies: 96, projectiles: 128, particles: 256, texts: 32 };
+export const POOL = { enemies: 128, projectiles: 160, particles: 256, texts: 48 };
 
 export const PALETTE = {
   backdrop: '#1c1830',
@@ -30,9 +54,9 @@ export const PALETTE = {
   skyBottom: '#4a3560',
   moon: '#ffe9b0',
   star: '#fff6d8',
-  grass: '#4a7c59',
-  grassDark: '#3d6b4a',
-  grassLight: '#5a8f68',
+  grass: '#558f66',
+  grassDark: '#47855c',
+  grassLight: '#6aa878',
   flower: '#f2a7c3',
   flower2: '#ffd166',
   path: '#e8d5a8',
@@ -57,7 +81,7 @@ export const LAYOUT = {
   topBar: { x: 0, y: 0, width: 1280, height: 56 },
   shopBar: { x: 0, y: 628, width: 1280, height: 92 },
   play: { x: 0, y: 56, width: 1280, height: 572 },
-  cardWidth: 196,
+  cardWidth: 148,
   cardHeight: 76,
-  cardGap: 12,
+  cardGap: 8,
 };

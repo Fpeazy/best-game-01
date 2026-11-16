@@ -7,9 +7,9 @@ export function waveClearBonus(wave) {
   return 15 + 4 * wave;
 }
 
-/** Interest on banked coins at wave end: 10%, capped so hoarding never wins alone. */
-export function interest(coins) {
-  return Math.min(INTEREST_CAP, Math.floor(coins * INTEREST_RATE));
+/** Interest on banked coins at wave end: a rate (10% by default), capped so hoarding never wins alone. */
+export function interest(coins, rate = INTEREST_RATE) {
+  return Math.min(INTEREST_CAP, Math.floor(coins * rate));
 }
 
 /** What selling a tower pays back: 70% of everything invested in it. */

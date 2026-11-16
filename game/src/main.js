@@ -9,17 +9,18 @@
 import { BEST_KEY, STEP } from './config.js';
 import { createRandom } from './random.js';
 import {
-  EVENT_BOSS, EVENT_KILL, EVENT_LEAK, EVENT_OVER, EVENT_PLACE, EVENT_SELL,
-  EVENT_UPGRADE, EVENT_WAVE_CLEAR, EVENT_WIN, PHASE_BUILD, createWorld,
+  EVENT_BOSS, EVENT_BOSS_PHASE, EVENT_KILL, EVENT_LEAK, EVENT_MUTATOR, EVENT_OVER,
+  EVENT_PLACE, EVENT_POST, EVENT_SELL, EVENT_UPGRADE, EVENT_WAVE_CLEAR, EVENT_WIN,
+  PHASE_BUILD, createWorld,
 } from './world.js';
 import {
-  ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_SELL, ACTION_SPEED,
-  ACTION_TOWER_1, ACTION_TOWER_2, ACTION_TOWER_3, ACTION_TOWER_4, ACTION_UPGRADE,
-  createInput,
+  ACTION_CONFIRM, ACTION_LONGNIGHT, ACTION_MUTE, ACTION_PAUSE, ACTION_SELL, ACTION_SPEED,
+  ACTION_TOWER_1, ACTION_TOWER_2, ACTION_TOWER_3, ACTION_TOWER_4, ACTION_TOWER_5,
+  ACTION_TOWER_6, ACTION_UPGRADE, createInput,
 } from './input.js';
 import { createAudio } from './audio.js';
 import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_WIN } from './render.js';
-import { OVER_BUTTON, TITLE_BUTTON, WIN_BUTTON, drawOver, drawPaused, drawTitle, drawWin } from './screens.js';
+import { DIFF_BUTTONS, LONGNIGHT_BUTTON, OVER_BUTTON, TITLE_BUTTON, WIN_BUTTON, drawOver, drawPaused, drawTitle, drawWin } from './screens.js';
 import { hitTest } from './ui.js';
 import { stageShot } from './shots.js';
 
@@ -90,6 +91,13 @@ function runGame() {
     announce('Playing. Protect the lantern through 10 waves.');
   }
 
+  function startLongNight() {
+    world.startEndless();
+    accumulator = 0;
+    screen = SCREEN_PLAY;
+    announce('The Long Night begins. How many nights can the cats hold?');
+  }
+
   function endGame(won) {
     screen = won ? SCREEN_WIN : SCREEN_OVER;
     if (world.state.score > best) {
@@ -116,8 +124,11 @@ function runGame() {
       endGame(false);
     }
     if (events & EVENT_BOSS) audio.boss();
+    if (events & EVENT_BOSS_PHASE) audio.phase();
+    if (events & EVENT_MUTATOR) audio.mutator();
     if (events & EVENT_PLACE) audio.place();
     if (events & EVENT_UPGRADE) audio.upgrade();
+    if (events & EVENT_POST) audio.upgrade();
     if (events & EVENT_SELL) audio.sell();
   }
 
@@ -139,6 +150,10 @@ function runGame() {
         announce('Playing.');
       }
     }
+    if (actions & ACTION_LONGNIGHT && screen === SCREEN_WIN) {
+      audio.unlock();
+      startLongNight();
+    }
     if (actions & ACTION_PAUSE) {
       if (screen === SCREEN_PLAY) {
         screen = SCREEN_PAUSED;
@@ -148,13 +163,25 @@ function runGame() {
         announce('Playing.');
       }
     }
+    const towerKeys = [ACTION_TOWER_1, ACTION_TOWER_2, ACTION_TOWER_3, ACTION_TOWER_4, ACTION_TOWER_5, ACTION_TOWER_6];
+    const towerTypes = ['yarn', 'fish', 'sleepy', 'star', 'frosty', 'mochi'];
+    const difficulties = ['easy', 'normal', 'hard'];
+    if (screen === SCREEN_TITLE) {
+      // Keys 1-3 pick a difficulty on the title screen.
+      for (let i = 0; i < 3; i += 1) {
+        if (actions & towerKeys[i]) {
+          world.setDifficulty(difficulties[i]);
+          announce(`Difficulty: ${difficulties[i]}.`);
+        }
+      }
+      return;
+    }
     if (screen !== SCREEN_PLAY) return;
-    const towerKeys = [ACTION_TOWER_1, ACTION_TOWER_2, ACTION_TOWER_3, ACTION_TOWER_4];
-    const towerTypes = ['yarn', 'fish', 'sleepy', 'mochi'];
     for (let i = 0; i < towerKeys.length; i += 1) {
       if (actions & towerKeys[i]) {
         world.state.placing = world.state.placing === towerTypes[i] ? null : towerTypes[i];
         world.state.selected = null;
+        world.state.selectedPost = null;
       }
     }
     if (actions & ACTION_UPGRADE && world.state.selected !== null) {
@@ -174,11 +201,19 @@ function runGame() {
     if (click === null) return;
     audio.unlock();
     if (screen === SCREEN_TITLE) {
+      for (const buttonDef of DIFF_BUTTONS) {
+        if (inside(click.x, click.y, buttonDef.rect)) {
+          world.setDifficulty(buttonDef.key);
+          audio.click();
+          return;
+        }
+      }
       if (inside(click.x, click.y, TITLE_BUTTON)) startGame();
       return;
     }
     if (screen === SCREEN_WIN) {
       if (inside(click.x, click.y, WIN_BUTTON)) startGame();
+      else if (inside(click.x, click.y, LONGNIGHT_BUTTON)) startLongNight();
       return;
     }
     if (screen === SCREEN_OVER) {
@@ -190,6 +225,7 @@ function runGame() {
     if (hit === null) {
       world.state.placing = null;
       world.state.selected = null;
+      world.state.selectedPost = null;
       return;
     }
     if (hit.kind === 'button') {
@@ -210,6 +246,7 @@ function runGame() {
       }
       world.state.placing = world.state.placing === hit.type ? null : hit.type;
       world.state.selected = null;
+      world.state.selectedPost = null;
       return;
     }
     if (hit.kind === 'plot') {
@@ -222,7 +259,18 @@ function runGame() {
     }
     if (hit.kind === 'tower') {
       world.state.selected = hit.tower;
+      world.state.selectedPost = null;
       world.state.placing = null;
+      return;
+    }
+    if (hit.kind === 'post') {
+      world.state.selectedPost = hit.index;
+      world.state.selected = null;
+      world.state.placing = null;
+      return;
+    }
+    if (hit.kind === 'postUpgrade' && world.state.selectedPost !== null) {
+      handleEvents(world.upgradePost(world.state.selectedPost));
       return;
     }
     if (hit.kind === 'upgrade' && world.state.selected !== null) {
