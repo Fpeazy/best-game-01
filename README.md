@@ -6,7 +6,7 @@
 
 Mochi's Lantern Garden — a cute 2D canvas tower defense. A chubby orange cat, Mochi, defends a paper-lantern garden at dusk from shadow bugs. Place cat towers on the garden plots, earn coins for every bug swatted, and survive all 10 waves — including the three-phase Shadow Moth boss. Towers standing in a lantern's glow fight up to 50% better, and the garden's light dims as the lantern loses lives.
 
-Six cat towers, each with its own look and level-3 final form: Mochi the hero swatter, Yarnball Kitten, Fish Tosser, Sleepy Guard, Star Gazer and Frosty Kitten. Three difficulties (Easy, Normal, Hard), a twist (mutator) on every wave from wave 6, upgradeable lantern posts, and after the win the endless Long Night — a Moth Queen every fifth night, for as long as the cats can hold.
+Six cat towers, each with its own look and level-3 final form: Mochi the hero swatter, Yarnball Kitten, Fish Tosser, Sleepy Guard, Star Gazer and Frosty Kitten. Three difficulties (Easy, Normal, Hard), a twist (mutator) on every wave from wave 6, upgradeable lantern posts, and after the win the endless Long Night — a Moth Queen every fifth night, for as long as the cats can hold. Every fifth wave the Lantern Festival flares: all the lanterns blaze at once, fireworks rain across the garden, and the Shadow Moth boss — crowned, rim-lit, twice the size of an ordinary bug — answers with a roar of light. Chained kills build a Starfall Combo — five in a row and a star crashes down on the toughest bug on the field. Towers always focus the boss first, so every beam converges on the crown.
 
 ## Run it
 

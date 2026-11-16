@@ -14,12 +14,19 @@ export const WAVE_GROUPS = [
   [['mite', 14], ['zip', 7], ['beetle', 3]],
   [['zip', 10], ['beetle', 5], ['moth', 4]],
   [['mite', 16], ['zip', 8], ['beetle', 5], ['moth', 4]],
-  [['zip', 12], ['beetle', 7], ['moth', 6]],
-  [['boss', 1], ['mite', 8], ['zip', 6]],
+  [['zip', 14], ['beetle', 8], ['moth', 8]],
+  [['boss', 1], ['mite', 10], ['zip', 8]],
 ];
 
 /** Seconds between spawns of each kind. */
 export const SPAWN_INTERVAL = { mite: 0.85, zip: 0.85, beetle: 1.3, moth: 1.3, boss: 0, queen: 0 };
+
+/** Spawn gap for a kind on a wave: the late waves (9-10) march in faster, so the
+ * garden is visibly crowded when it matters most. */
+export function spawnIntervalFor(type, wave) {
+  if (wave >= 9 && (type === 'mite' || type === 'zip')) return 0.65;
+  return SPAWN_INTERVAL[type] ?? 0.85;
+}
 
 /** The groups for an endless wave: the stream grows with each night, and a Moth
  * Queen opens every fifth night. Night 1 is wave 11. */

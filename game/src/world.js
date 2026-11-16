@@ -13,7 +13,7 @@ import { BUILD_SECONDS, DIFFICULTIES, MAX_POST_LEVEL, MAX_WAVE, MUTATORS, POST_U
 import { buildDecor, buildPlots, distanceToPath, glowBonusAt, LANTERN, LANTERN_POSTS } from './garden.js';
 import { createTowers, TOWER_TYPES, upgradeCost } from './towers.js';
 import { createEnemies } from './enemies.js';
-import { mutatorForWave, SPAWN_INTERVAL, wavePreview, waveQueue } from './waves.js';
+import { mutatorForWave, spawnIntervalFor, wavePreview, waveQueue } from './waves.js';
 import { interest, sellValue, waveClearBonus } from './economy.js';
 import { createEffects } from './effects.js';
 
@@ -76,7 +76,18 @@ export function createWorld(random) {
     endless: false,
     mutator: 'none',
     postLevels: [1, 1, 1, 1],
+    /** Lantern Festival flare, 0..1 — the garden blazes; decays with sim time. */
+    festival: 0,
+    /** Seconds until the next Festival Cascade firework. */
+    cascadeTimer: 0,
   };
+  /** The cascade's own tiny PRNG, so firework positions never churn the main
+   * random stream the enemy spawns draw from. Reset with the world. */
+  let cascadeSeed = 987654321;
+  function cascadeRandom() {
+    cascadeSeed = (cascadeSeed * 1103515245 + 12345) & 0x7fffffff;
+    return cascadeSeed / 0x7fffffff;
+  }
   const glowAt = (x, y) => glowBonusAt(x, y, state.postLevels);
   const towers = createTowers(random, fx, glowAt);
   const enemies = createEnemies(random);
@@ -111,6 +122,10 @@ export function createWorld(random) {
     state.endless = false;
     state.mutator = 'none';
     state.postLevels = [1, 1, 1, 1];
+    state.festival = 0;
+    state.cascadeTimer = 0;
+    cascadeSeed = 987654321;
+    towers.resetCombo();
     // Mochi, the hero cat, is already on the field: the best-covered plot she can
     // actually swat from (her range is short, so the plot must hug the path).
     const mochiRange = TOWER_TYPES.mochi.range;
@@ -140,6 +155,31 @@ export function createWorld(random) {
     return `Wave ${Math.min(state.wave, MAX_WAVE)}/${MAX_WAVE}`;
   }
 
+  /**
+   * The Lantern Festival: every 5th wave (and every 5th Long Night) all the
+   * lanterns flare at once — a golden burst at every post and the big lantern,
+   * a shower of sparkles across the garden, a screen flash and a shake punch.
+   * Pure sim state (festival 0..1, decays with sim time), so a screenshot
+   * staged at a festival moment shows exactly what a player sees.
+   */
+  function triggerFestival(message) {
+    state.festival = 1;
+    fx.triggerFlash(0.7);
+    fx.addTrauma(0.5);
+    for (const post of LANTERN_POSTS) {
+      fx.spawnBurst(post.x, post.y - 18, '#ffd166', 16, 130, 0.8, 3.5);
+      fx.spawnBurst(post.x, post.y - 18, '#fff6d8', 8, 90, 0.6, 2.5);
+    }
+    fx.spawnBurst(LANTERN.x, LANTERN.y - 6, '#ffd166', 20, 150, 0.9, 4);
+    for (let n = 0; n < 12; n += 1) {
+      fx.spawnBurst(40 + random() * 1200, 80 + random() * 520, n % 2 === 0 ? '#ffd166' : '#fff6d8', 3, 60, 0.9, 2.5);
+    }
+    if (message !== null) {
+      state.message = message;
+      state.messageTimer = 3;
+    }
+  }
+
   function startWave() {
     if (state.phase !== PHASE_BUILD) return false;
     state.spawnQueue = waveQueue(state.wave);
@@ -153,6 +193,7 @@ export function createWorld(random) {
       ? `${label} — ${wavePreview(state.wave)}`
       : `${label} — ${wavePreview(state.wave)} · ${mut.icon} ${mut.name}`;
     state.messageTimer = 3;
+    if (state.wave % 5 === 0) triggerFestival(`🎆 Lantern Festival! ${label} — the garden blazes with light!`);
     return true;
   }
 
@@ -193,6 +234,14 @@ export function createWorld(random) {
     tower.invested += cost;
     fx.spawnBurst(tower.x, tower.y - 10, '#ffd166', 12, 90, 0.5, 3);
     fx.spawnText(tower.x, tower.y - 34, 'LEVEL UP!', '#ffd166');
+    if (tower.level === 3) {
+      // The final form arrives with a golden beam from the sky — the moment
+      // reads in a still screenshot as well as in motion.
+      fx.spawnBeam(tower.x, 56, tower.y, 26, '#ffd166', 0.9);
+      fx.spawnText(tower.x, tower.y - 52, 'FINAL FORM!', '#ffd166', 20);
+      fx.triggerFlash(0.25);
+      fx.addTrauma(0.25);
+    }
     return EVENT_UPGRADE;
   }
 
@@ -235,7 +284,9 @@ export function createWorld(random) {
     state.coins += bonus + extra;
     state.earned += bonus + extra;
     state.score += bonus * 5;
-    fx.spawnText(LANTERN.x - 40, LANTERN.y - 50, `Wave clear! +${bonus + extra}`, '#ffd166');
+    // The kill chain is broken between waves: no kills, no combo.
+    towers.resetCombo();
+    fx.spawnText(LANTERN.x - 40, LANTERN.y - 50, `Wave clear! +${bonus + extra}`, '#ffd166', 20);
     if (state.wave >= MAX_WAVE && !state.endless) {
       state.phase = PHASE_WON;
       return EVENT_WAVE_CLEAR | EVENT_WIN;
@@ -257,6 +308,22 @@ export function createWorld(random) {
     let events = 0;
     state.elapsed += dt;
     if (state.messageTimer > 0) state.messageTimer = Math.max(0, state.messageTimer - dt);
+    if (state.festival > 0) state.festival = Math.max(0, state.festival - dt * 0.12);
+    // Festival Cascade (GLM's idea, visual only): while the garden blazes,
+    // fireworks rain across the field every half second — gold, pink, lavender
+    // — so a festival moment reads as a celebration from edge to edge, not
+    // just a glow at the lanterns. No gameplay effect, so balance is untouched.
+    if (state.festival > 0.25) {
+      state.cascadeTimer -= dt;
+      if (state.cascadeTimer <= 0) {
+        state.cascadeTimer = 0.45;
+        const colors = ['#ffd166', '#ff9ec6', '#c9a7f2'];
+        const cx = 80 + cascadeRandom() * 1120;
+        const cy = 120 + cascadeRandom() * 420;
+        fx.spawnBurst(cx, cy, colors[Math.floor(cascadeRandom() * 3)], 18, 130, 0.9, 3.5);
+        if (cascadeRandom() < 0.4) fx.spawnRing(cx, cy, 90, '#ffd166');
+      }
+    }
     fx.update(dt);
 
     if (state.phase === PHASE_BUILD) {
@@ -275,18 +342,26 @@ export function createWorld(random) {
             events |= EVENT_BOSS;
             fx.addTrauma(0.6);
           }
-          state.spawnTimer += SPAWN_INTERVAL[type] ?? 0.85;
+          state.spawnTimer += spawnIntervalFor(type, state.wave);
         }
       }
       const leaked = enemies.update(dt, state.elapsed, state.wave, DIFFICULTIES[state.difficulty], mutatorMods(state.mutator));
       for (let i = 0; i < enemies.phaseEvents.length; i += 1) {
-        const { phase } = enemies.phaseEvents[i];
+        const { enemy, phase } = enemies.phaseEvents[i];
         events |= EVENT_BOSS_PHASE;
         state.message = phase === 3
           ? 'The Shadow Moth takes flight! Only fish tossers, star gazers and veteran cats can reach it!'
           : 'The Shadow Moth grows angry — it moves faster and sheds more bugs!';
         state.messageTimer = 3;
+        // A phase change is a spectacle beat: the lanterns flare again, the
+        // boss bursts with light, a hit-stop punch.
+        state.festival = 1;
+        fx.triggerFlash(0.5);
         fx.addTrauma(0.7);
+        fx.triggerHitStop(0.12);
+        fx.spawnBurst(enemy.x, enemy.y, '#ffd166', 24, 160, 0.9, 4);
+        fx.spawnBurst(enemy.x, enemy.y, '#c9a7f2', 16, 120, 0.8, 3.5);
+        fx.spawnRing(enemy.x, enemy.y, 200, '#ffd166');
       }
       for (let i = 0; i < leaked.length; i += 1) {
         const enemy = leaked[i];

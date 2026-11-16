@@ -21,8 +21,16 @@ export function createEffects(random) {
   for (let i = 0; i < 8; i += 1) {
     arcs.push({ active: false, x: 0, y: 0, angle: 0, life: 0, maxLife: 0.18 });
   }
+  const beams = [];
+  for (let i = 0; i < 8; i += 1) {
+    beams.push({ active: false, x: 0, top: 0, bottom: 0, life: 0, maxLife: 1, width: 24, color: '#ffd166' });
+  }
   let trauma = 0;
   let time = 0;
+  /** Full-field gold flash, 0..1 — set by sim events, decays with sim time. */
+  let flash = 0;
+  /** Hit-stop, in real seconds — the main loop (not the sim) spends it. */
+  let hitStop = 0;
 
   function freeParticle() {
     for (let i = 0; i < particles.length; i += 1) if (!particles[i].active) return particles[i];
@@ -47,7 +55,7 @@ export function createEffects(random) {
     }
   }
 
-  function spawnText(x, y, text, color) {
+  function spawnText(x, y, text, color, size) {
     let slot = null;
     for (let i = 0; i < texts.length; i += 1) {
       if (!texts[i].active) { slot = texts[i]; break; }
@@ -60,7 +68,37 @@ export function createEffects(random) {
     slot.maxLife = 0.8;
     slot.text = text;
     slot.color = color;
-    slot.size = 14;
+    slot.size = size ?? 14;
+  }
+
+  /** A golden column of light, e.g. a tower reaching its final form. */
+  function spawnBeam(x, top, bottom, width, color, life) {
+    for (let i = 0; i < beams.length; i += 1) {
+      if (beams[i].active) continue;
+      beams[i].active = true;
+      beams[i].x = x;
+      beams[i].top = top;
+      beams[i].bottom = bottom;
+      beams[i].life = life;
+      beams[i].maxLife = life;
+      beams[i].width = width;
+      beams[i].color = color;
+      return;
+    }
+  }
+
+  function triggerFlash(amount) {
+    flash = Math.min(1, Math.max(flash, amount));
+  }
+
+  /** Start (or extend) a hit-stop; only the newest, longest one is kept. */
+  function triggerHitStop(seconds) {
+    hitStop = Math.max(hitStop, seconds);
+  }
+
+  /** Decay the shake trauma on real time, so the camera never freezes off-centre. */
+  function decayTrauma(realDt) {
+    trauma = Math.max(0, trauma - realDt * 1.4);
   }
 
   function spawnRing(x, y, maxRadius, color) {
@@ -98,6 +136,7 @@ export function createEffects(random) {
   function update(dt) {
     time += dt;
     trauma = Math.max(0, trauma - dt * 1.4);
+    flash = Math.max(0, flash - dt * 1.8);
     for (let i = 0; i < particles.length; i += 1) {
       const p = particles[i];
       if (!p.active) continue;
@@ -127,6 +166,12 @@ export function createEffects(random) {
       a.life -= dt;
       if (a.life <= 0) a.active = false;
     }
+    for (let i = 0; i < beams.length; i += 1) {
+      const b = beams[i];
+      if (!b.active) continue;
+      b.life -= dt;
+      if (b.life <= 0) b.active = false;
+    }
   }
 
   /** The camera offset this frame (visual only — it never moves the simulation). */
@@ -138,5 +183,13 @@ export function createEffects(random) {
     };
   }
 
-  return { particles, texts, rings, arcs, spawnBurst, spawnText, spawnRing, spawnArc, addTrauma, update, shakeOffset };
+  return {
+    particles, texts, rings, arcs, beams,
+    get flash() { return flash; },
+    get hitStop() { return hitStop; },
+    set hitStop(value) { hitStop = value; },
+    spawnBurst, spawnText, spawnRing, spawnArc, spawnBeam,
+    triggerFlash, triggerHitStop, decayTrauma,
+    addTrauma, update, shakeOffset,
+  };
 }

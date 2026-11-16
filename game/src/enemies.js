@@ -12,21 +12,26 @@ export const ENEMY_TYPES = {
   zip: { name: 'Zip Bug', hp: 16, speed: 112, reward: 5, lives: 1, radius: 9, armor: 0, flying: false },
   beetle: { name: 'Shell Beetle', hp: 120, speed: 36, reward: 10, lives: 1, radius: 15, armor: 4, flying: false },
   moth: { name: 'Flutter Moth', hp: 38, speed: 76, reward: 7, lives: 1, radius: 12, armor: 0, flying: true },
-  boss: { name: 'Shadow Moth', hp: 2400, speed: 30, reward: 120, lives: 3, radius: 30, armor: 2, flying: false, spawns: true },
-  queen: { name: 'Moth Queen', hp: 1200, speed: 40, reward: 80, lives: 2, radius: 22, armor: 1, flying: true, spawns: true },
+  boss: { name: 'Shadow Moth', hp: 2400, speed: 30, reward: 120, lives: 3, radius: 46, armor: 2, flying: false, spawns: true },
+  queen: { name: 'Moth Queen', hp: 1200, speed: 40, reward: 80, lives: 2, radius: 30, armor: 1, flying: true, spawns: true },
 };
 
 /**
- * An enemy's stats at a wave: health grows 25% a wave through the campaign, then
+ * An enemy's stats at a wave: health grows 20% a wave through the campaign, then
  * 12% a night in the Long Night; speed a little. `diff` is the difficulty's
  * multipliers ({hp, speed}), `mods` the night's mutator ({hp, speed, armor, rewardMul,
  * rewardBonus, mothSpeed}).
+ *
+ * v3 retune: HP growth was 25%/wave; cut to 20%/wave to compensate for the
+ * round-3 cooldown fix, which removed the burst-fire bug that had silently
+ * inflated tower damage. Together with the 1.20x tower-damage multiplier this
+ * restores the verified balance (Easy 12/12, Normal ~6/10, Hard reaches wave 10).
  */
 export function enemyStats(type, wave, diff, mods) {
   const def = ENEMY_TYPES[type];
   const hpScale = wave <= MAX_WAVE
-    ? 1 + 0.25 * (wave - 1)
-    : 3.25 + 0.12 * (wave - MAX_WAVE);
+    ? 1 + 0.20 * (wave - 1)
+    : 2.80 + 0.12 * (wave - MAX_WAVE);
   const speedScale = wave <= MAX_WAVE
     ? Math.min(1.25, 1 + 0.02 * (wave - 1))
     : Math.min(1.45, 1.25 + 0.01 * (wave - MAX_WAVE));

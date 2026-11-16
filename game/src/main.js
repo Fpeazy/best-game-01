@@ -308,12 +308,20 @@ function runGame() {
 
   function frame(now) {
     requestAnimationFrame(frame);
-    accumulator += Math.min((now - last) / 1000, MAX_FRAME) * speed;
+    const realDt = Math.min((now - last) / 1000, MAX_FRAME);
     last = now;
     handleActions();
     handleClick();
     updateHover();
-    if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
+    // Hit-stop (game-feel, large tier): the sim freezes for a beat on crits and
+    // boss phase changes, while the shake trauma decays on real time so the
+    // camera never freezes off-centre. Input still registers through it.
+    if (world.fx.hitStop > 0) {
+      world.fx.hitStop = Math.max(0, world.fx.hitStop - realDt);
+      world.fx.decayTrauma(realDt);
+      accumulator = 0;
+    } else if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
+      accumulator += realDt * speed;
       while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
         step();
         accumulator -= STEP;

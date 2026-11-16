@@ -157,16 +157,28 @@ export function stageShot(name, world) {
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
-    // Wave 7, with a mutator running and a full garden: the busiest, brightest frame.
-    runUntil(world, (state) => state.phase === PHASE_WAVE && state.wave === 7 && countAlive(world) >= 8 && leadProgress(world) > 0.2 && countTowers(world) >= 7);
+    // Wave 10 at the festival's peak: the boss in its angry second phase, the
+    // lanterns flaring, a dense escort stream — the frame must read as a
+    // battle at thumbnail size, not a calm garden. The phase change itself
+    // re-flares the festival to 1.0, and the slower decay keeps it above 0.5
+    // for ~4s, so the moment is caught, not missed. Six or more bugs alive
+    // keeps the frame dense.
+    runUntil(world, (state) => {
+      if (state.phase !== PHASE_WAVE || state.wave !== 10) return false;
+      const boss = bossOf(world);
+      return boss !== null && boss.phase >= 2 && state.festival > 0.5 && countAlive(world) >= 6 && countTowers(world) >= 7;
+    });
     const over = world.state.phase === PHASE_LOST;
     return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
   }
   if (name === 'boss') {
-    // The boss in its angry second phase, mid-field in the lantern light.
+    // The boss in its final, flying phase: red eyes, crown, straight at the
+    // lantern with its moth escort — the most dramatic single moment in the
+    // game, and a different frame from the play shot by construction (phase 3
+    // only starts once the boss is below a third of its health).
     runUntil(world, () => {
       const boss = bossOf(world);
-      return boss !== null && boss.phase >= 2 && boss.progress > 0.15 && countAlive(world) >= 3;
+      return boss !== null && boss.phase === 3 && boss.progress > 0.1 && countAlive(world) >= 2;
     });
     const over = world.state.phase === PHASE_LOST;
     return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };

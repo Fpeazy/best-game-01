@@ -221,7 +221,7 @@ export function createRenderer(canvas) {
     context.fill();
   }
 
-  function drawLanternPost(post, level, light, t) {
+  function drawLanternPost(post, level, light, t, festival) {
     // The glow zone on the ground: players can SEE where the bonus reaches.
     const zone = postGlowRadius(level);
     context.fillStyle = 'rgba(255, 190, 90, 0.10)';
@@ -234,7 +234,7 @@ export function createRenderer(canvas) {
     context.stroke();
     context.setLineDash([]);
     const flicker = 0.85 + 0.15 * Math.sin(t * 2.3 + post.x);
-    drawGlow(post.x, post.y - 18, 110, 0.75 * light * flicker);
+    drawGlow(post.x, post.y - 18, 110 * (1 + festival * 0.6), 0.75 * light * flicker * (1 + festival * 0.6));
     context.strokeStyle = '#4a3423';
     context.lineWidth = 5;
     context.beginPath();
@@ -263,9 +263,9 @@ export function createRenderer(canvas) {
     }
   }
 
-  function drawBigLantern(world, light, t) {
+  function drawBigLantern(world, light, t, festival) {
     const flicker = 0.9 + 0.1 * Math.sin(t * 1.8);
-    drawGlow(LANTERN.x, LANTERN.y, 190, 0.8 * light * flicker);
+    drawGlow(LANTERN.x, LANTERN.y, 190 * (1 + festival * 0.6), 0.8 * light * flicker * (1 + festival * 0.5));
     // A stone base, then the big paper lantern.
     context.fillStyle = '#7a6a58';
     roundRect(LANTERN.x - 30, LANTERN.y + 18, 60, 16, 6);
@@ -596,8 +596,8 @@ export function createRenderer(canvas) {
       // dark-rimmed for the boss (wider still in its flying phase).
       const flap = Math.sin(enemy.wobble * 2.4) * 0.5;
       const wingColor = enemy.type === 'boss' ? '#6b4a8e' : enemy.type === 'queen' ? '#f2a7c3' : '#d9c8f2';
-      const wingR = enemy.type === 'boss' ? enemy.radius * 1.05 : enemy.radius * 0.95;
-      const spread = enemy.type === 'boss' && enemy.phase === 3 ? 0.9 : 0.5;
+      const wingR = enemy.type === 'boss' ? enemy.radius * 1.15 : enemy.radius * 0.95;
+      const spread = enemy.type === 'boss' && enemy.phase === 3 ? 0.9 : 0.6;
       context.fillStyle = wingColor;
       context.save();
       context.rotate(-spread - flap * 0.3);
@@ -630,7 +630,7 @@ export function createRenderer(canvas) {
     context.arc(0, 0, enemy.radius, 0, Math.PI * 2);
     context.fill();
     context.strokeStyle = enemy.type === 'boss' ? '#ffd166' : 'rgba(20, 10, 30, 0.5)';
-    context.lineWidth = enemy.type === 'boss' ? 3.5 : 2;
+    context.lineWidth = enemy.type === 'boss' ? 5 : 2;
     context.stroke();
     if (enemy.type === 'zip') {
       context.strokeStyle = '#b06a2a';
@@ -678,7 +678,30 @@ export function createRenderer(canvas) {
       context.lineTo(0, -enemy.radius * 0.2);
       context.stroke();
     }
-    if (enemy.type === 'boss' || enemy.type === 'queen') {
+    if (enemy.type === 'boss') {
+      // A real golden crown with red gems — the first thing the eye lands on.
+      const r = enemy.radius;
+      context.fillStyle = '#ffd166';
+      context.beginPath();
+      context.moveTo(-r * 0.55, -r * 0.55);
+      context.lineTo(-r * 0.55, -r * 1.05);
+      context.lineTo(-r * 0.28, -r * 0.75);
+      context.lineTo(0, -r * 1.15);
+      context.lineTo(r * 0.28, -r * 0.75);
+      context.lineTo(r * 0.55, -r * 1.05);
+      context.lineTo(r * 0.55, -r * 0.55);
+      context.closePath();
+      context.fill();
+      context.strokeStyle = '#e8a94e';
+      context.lineWidth = 2;
+      context.stroke();
+      context.fillStyle = '#ff5a6e';
+      context.beginPath();
+      context.arc(-r * 0.28, -r * 0.8, r * 0.08, 0, Math.PI * 2);
+      context.arc(0, -r * 0.9, r * 0.08, 0, Math.PI * 2);
+      context.arc(r * 0.28, -r * 0.8, r * 0.08, 0, Math.PI * 2);
+      context.fill();
+    } else if (enemy.type === 'queen') {
       // A crown of shadow antennae with golden tips.
       context.strokeStyle = '#c9a7f2';
       context.lineWidth = 3;
@@ -699,6 +722,10 @@ export function createRenderer(canvas) {
     const look = enemy.angle;
     const ex = Math.cos(look) * enemy.radius * 0.3;
     const ey = Math.sin(look) * enemy.radius * 0.3;
+    if (enemy.type === 'boss') {
+      drawGlow(ex - enemy.radius * 0.32, ey - enemy.radius * 0.18, 18, 0.8);
+      drawGlow(ex + enemy.radius * 0.32, ey - enemy.radius * 0.18, 18, 0.8);
+    }
     context.fillStyle = enemy.type === 'boss' && enemy.phase === 3 ? '#ff5a3c' : PALETTE.shadowEye;
     context.beginPath();
     context.arc(ex - enemy.radius * 0.32, ey - enemy.radius * 0.18, enemy.radius * 0.16, 0, Math.PI * 2);
@@ -722,13 +749,13 @@ export function createRenderer(canvas) {
       if (!enemy.active) continue;
       // The boss carries its own warm rim light, so it never reads as a dark blob.
       if (enemy.type === 'boss') {
-        const grad = context.createRadialGradient(enemy.x, enemy.y, 10, enemy.x, enemy.y, 110);
-        grad.addColorStop(0, 'rgba(255, 190, 90, 0.45)');
-        grad.addColorStop(0.6, 'rgba(180, 120, 200, 0.25)');
+        const grad = context.createRadialGradient(enemy.x, enemy.y, 10, enemy.x, enemy.y, 180);
+        grad.addColorStop(0, 'rgba(255, 190, 90, 0.55)');
+        grad.addColorStop(0.6, 'rgba(180, 120, 200, 0.3)');
         grad.addColorStop(1, 'rgba(180, 120, 200, 0)');
         context.fillStyle = grad;
         context.beginPath();
-        context.arc(enemy.x, enemy.y, 110, 0, Math.PI * 2);
+        context.arc(enemy.x, enemy.y, 180, 0, Math.PI * 2);
         context.fill();
       }
       // Flying bugs cast a soft ground shadow, so they read as flying.
@@ -822,10 +849,22 @@ export function createRenderer(canvas) {
       text(t.text, t.x, t.y, t.size, t.color, 'center', true);
     }
     context.globalAlpha = 1;
+    // Golden beams: final-form columns of light, fading from the sky down.
+    for (const b of fx.beams) {
+      if (!b.active) continue;
+      const a = (b.life / b.maxLife) * 0.8;
+      const grad = context.createLinearGradient(b.x, b.top, b.x, b.bottom);
+      grad.addColorStop(0, 'rgba(255, 209, 102, 0)');
+      grad.addColorStop(0.5, `rgba(255, 209, 102, ${a})`);
+      grad.addColorStop(1, `rgba(255, 209, 102, ${a * 0.9})`);
+      context.fillStyle = grad;
+      context.fillRect(b.x - b.width / 2, b.top, b.width, b.bottom - b.top);
+      drawGlow(b.x, b.bottom, b.width * 1.6, a * 0.7);
+    }
   }
 
   function drawVignette(world) {
-    const light = world.lightLevel();
+    const light = Math.max(world.lightLevel(), world.state.festival * 0.9);
     if (light >= 1) return;
     const grad = context.createRadialGradient(640, 360, 240, 640, 360, 720);
     grad.addColorStop(0, 'rgba(20, 10, 30, 0)');
@@ -870,6 +909,21 @@ export function createRenderer(canvas) {
       const label = name === 'pause' ? (screen === SCREEN_PAUSED ? '▶' : 'II') : name === 'speed' ? `${speed}x` : '♪';
       text(label, rect.x + rect.width / 2, rect.y + 26, name === 'speed' ? 15 : 17, PALETTE.text, 'center', true);
     }
+  }
+
+  /** The Starfall Combo meter: five stars under the top bar, filling gold as
+   * chained kills build toward the next starfall. Always visible during play
+   * so the mechanic teaches itself; dim when the combo is cold. */
+  function drawComboMeter(world) {
+    const combo = world.towers.combo ?? 0;
+    context.fillStyle = 'rgba(28, 24, 48, 0.88)';
+    roundRect(16, 64, 178, 32, 10);
+    context.fill();
+    for (let i = 0; i < 5; i += 1) {
+      const filled = i < combo;
+      text('★', 30 + i * 22, 88, 18, filled ? '#ffd166' : 'rgba(255, 246, 232, 0.25)', 'left', true);
+    }
+    text('COMBO', 140, 87, 13, combo >= 3 ? '#ffd166' : PALETTE.muted, 'left', true);
   }
 
   /** The boss (or queen) health bar under the top bar, with phase marks on the bar. */
@@ -1006,19 +1060,34 @@ export function createRenderer(canvas) {
     const shake = world.fx.shakeOffset();
     context.setTransform(view.scale, 0, 0, view.scale, view.x + shake.x * view.scale, view.y + shake.y * view.scale);
     const light = world.lightLevel();
+    const festival = world.state.festival;
     drawSky(world);
     drawGarden(world);
-    LANTERN_POSTS.forEach((post, i) => drawLanternPost(post, world.state.postLevels[i], light, world.state.elapsed));
-    drawBigLantern(world, light, world.state.elapsed);
+    LANTERN_POSTS.forEach((post, i) => drawLanternPost(post, world.state.postLevels[i], light, world.state.elapsed, festival));
+    drawBigLantern(world, light, world.state.elapsed, festival);
     drawPlots(world);
     drawTowers(world);
     drawEnemies(world);
     drawProjectiles(world);
     drawEffects(world);
+    // The festival wash and the flash overlay: gold over the field only (the
+    // HUD is drawn after, so it stays readable).
+    if (festival > 0) {
+      const wash = context.createRadialGradient(LANTERN.x, LANTERN.y, 60, LANTERN.x, LANTERN.y, 780);
+      wash.addColorStop(0, `rgba(255, 200, 100, ${festival * 0.20})`);
+      wash.addColorStop(1, 'rgba(255, 200, 100, 0)');
+      context.fillStyle = wash;
+      context.fillRect(0, 0, FIELD.width, FIELD.height);
+    }
+    if (world.fx.flash > 0) {
+      context.fillStyle = `rgba(255, 210, 110, ${world.fx.flash * 0.20})`;
+      context.fillRect(0, 0, FIELD.width, FIELD.height);
+    }
     drawVignette(world);
     if (screen !== SCREEN_TITLE) {
       drawTopBar(world, screen, best, speed ?? 1);
       drawBossBar(world);
+      drawComboMeter(world);
       drawShopBar(world);
       drawMessage(world);
     }

@@ -47,13 +47,34 @@ export const TOWER_TYPES = {
 
 export const MAX_LEVEL = 3;
 
+/**
+ * Flat tower-damage multiplier (v3 balance retune).
+ * The round-3 cooldown fix removed the burst-fire bug that had silently
+ * inflated tower damage (banked negative cooldown fired one shot per step
+ * when a target appeared). After the fix the autopilot fell to Normal 1/10,
+ * Easy 8/12, Hard wave 6 — so all tower damage is raised 20% as the single
+ * direct compensation (GLM's recommendation, cross-checked below).
+ */
+export const TOWER_DAMAGE_MULT = 1.2;
+
+/**
+ * Starfall Combo (GLM's feature idea, synthesised in v3): chained kills build
+ * a combo — each kill within 1.5s of the last adds one, up to 5. At 5 a star
+ * falls from the sky onto the toughest bug on the field for flat damage, with
+ * a beam, a flash and a hit-stop punch. The damage is deliberately small
+ * (150) so the combo is a spectacle and a reward, not a balance lever.
+ */
+export const COMBO_WINDOW = 1.5;
+export const COMBO_MAX = 5;
+export const STARFALL_DAMAGE = 150;
+
 /** Stats of a tower at a level, before the lantern-light bonus. */
 export function towerStats(type, level) {
   const def = TOWER_TYPES[type];
   const boost = 1 + 0.4 * (level - 1);
   const stats = {
     range: def.range * (1 + 0.12 * (level - 1)),
-    damage: def.damage * boost,
+    damage: def.damage * boost * TOWER_DAMAGE_MULT,
     rate: def.rate * (1 + 0.12 * (level - 1)),
     splash: def.splash ?? 0,
     slow: def.slow ?? 0,
@@ -102,6 +123,43 @@ export function createTowers(random, fx, glowAt) {
     });
   }
   const killed = [];
+  /** Starfall Combo state: chained kills, and how many starfalls have fired. */
+  let combo = 0;
+  let comboTimer = 0;
+  let starfalls = 0;
+
+  /**
+   * The Starfall itself: a beam of light falls on the toughest bug alive, a
+   * gold burst, a ring, a flash and a hit-stop punch, and flat damage. If the
+   * star kills, the kill is appended to `killed` so the world rewards it like
+   * any other kill. Returns false when nothing is alive to strike.
+   */
+  function triggerStarfall(enemies, count) {
+    let target = null;
+    for (let i = 0; i < count; i += 1) {
+      const enemy = enemies[i];
+      if (!enemy.active) continue;
+      if (target === null || enemy.hp > target.hp) target = enemy;
+    }
+    if (target === null) return false;
+    starfalls += 1;
+    fx.spawnBeam(target.x, 0, target.y, 34, '#ffe9a8', 0.9);
+    fx.spawnBurst(target.x, target.y, '#ffd166', 26, 200, 1.0, 4.5);
+    fx.spawnBurst(target.x, target.y, '#fff6d8', 14, 130, 0.8, 3);
+    fx.spawnRing(target.x, target.y, 190, '#ffd166');
+    fx.spawnText(target.x, target.y - target.radius - 30, '★ STARFALL!', '#ffd166', 24);
+    fx.triggerFlash(0.45);
+    fx.triggerHitStop(0.15);
+    fx.addTrauma(0.5);
+    if (hitEnemy(target, STARFALL_DAMAGE, false)) killed.push(target);
+    return true;
+  }
+
+  /** Reset the combo (a new game, or a restart). */
+  function resetCombo() {
+    combo = 0;
+    comboTimer = 0;
+  }
 
   function freeTower() {
     for (let i = 0; i < towers.length; i += 1) if (!towers[i].active) return towers[i];
@@ -136,28 +194,51 @@ export function createTowers(random, fx, glowAt) {
   }
 
   /** The enemy furthest along the path inside this tower's range (and hittable). */
+  /**
+   * Target acquisition: towers focus the biggest threat first. A boss or Moth
+   * Queen in range is always the target (every beam converging on the boss is
+   * also the most readable boss fight on screen); otherwise the bug furthest
+   * along the path. v3 fix: without this the boss's escorts absorbed all fire
+   * and the boss walked to the lantern — the autopilot lost exactly the boss's
+   * 3 lives on Easy, 12/12 became 9/12.
+   */
   function acquire(tower, range, enemies, count) {
     let best = null;
     let bestProgress = -1;
+    let bestBoss = null;
+    let bestBossProgress = -1;
     for (let i = 0; i < count; i += 1) {
       const enemy = enemies[i];
       if (!enemy.active || !canHit(tower, enemy)) continue;
       const dx = enemy.x - tower.x;
       const dy = enemy.y - tower.y;
       if (dx * dx + dy * dy > range * range) continue;
-      if (enemy.progress > bestProgress) {
+      if (enemy.type === 'boss' || enemy.type === 'queen') {
+        if (enemy.progress > bestBossProgress) {
+          bestBossProgress = enemy.progress;
+          bestBoss = enemy;
+        }
+      } else if (enemy.progress > bestProgress) {
         bestProgress = enemy.progress;
         best = enemy;
       }
     }
-    return best;
+    return bestBoss ?? best;
   }
 
   function hitEnemy(enemy, damage, crit) {
     if (!enemy.active) return false;
     enemy.hp -= damageAfterArmor(damage, enemy.armor);
-    fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), crit ? '#ffd166' : '#fff6e8');
-    if (crit) fx.spawnText(enemy.x, enemy.y - enemy.radius - 22, 'CRIT!', '#ffd166');
+    if (crit) {
+      // A crit reads at thumbnail size: a big gold number, a CRIT! callout, a
+      // short hit-stop and a shake punch (game-feel, large tier).
+      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#ffd166', 26);
+      fx.spawnText(enemy.x, enemy.y - enemy.radius - 30, 'CRIT!', '#ffd166', 20);
+      fx.triggerHitStop(0.09);
+      fx.addTrauma(0.3);
+    } else {
+      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#fff6e8');
+    }
     if (enemy.hp <= 0) {
       enemy.active = false;
       killed.push(enemy);
@@ -266,7 +347,12 @@ export function createTowers(random, fx, glowAt) {
       tower.cooldown -= dt;
       if (tower.cooldown > 0) continue;
       const target = acquire(tower, range, enemies, count);
-      if (target === null) continue;
+      if (target === null) {
+        // No target: never bank negative cooldown, or the tower machine-guns
+        // the next bug that wanders into range (a burst of one shot a step).
+        tower.cooldown = 0;
+        continue;
+      }
       tower.cooldown += 1 / stats.rate;
       if (def.melee) {
         tower.squash = 0.18;
@@ -281,8 +367,32 @@ export function createTowers(random, fx, glowAt) {
       }
     }
     updateProjectiles(dt, enemies, count, now);
+    // Starfall Combo: kills chained within the window build the combo; at 5 a
+    // star falls. One starfall per step at most; if nothing is alive to strike
+    // the combo waits at 4 for the next kill.
+    if (comboTimer > 0) {
+      comboTimer -= dt;
+      if (comboTimer <= 0) combo = 0;
+    }
+    for (let k = 0; k < killed.length; k += 1) {
+      combo = comboTimer > 0 ? combo + 1 : 1;
+      comboTimer = COMBO_WINDOW;
+      if (combo >= COMBO_MAX) {
+        if (triggerStarfall(enemies, count)) {
+          combo = 0;
+          comboTimer = 0;
+        } else {
+          combo = COMBO_MAX - 1;
+        }
+        break;
+      }
+    }
     return killed;
   }
 
-  return { towers, projectiles, place, remove, update, killed };
+  return {
+    towers, projectiles, place, remove, update, killed, resetCombo,
+    get combo() { return combo; },
+    get starfalls() { return starfalls; },
+  };
 }
