@@ -238,9 +238,10 @@ export function createTowers(random, fx, glowAt) {
       fx.triggerHitStop(0.09);
       fx.addTrauma(0.3);
     } else {
-      // Big, bright damage numbers (v4, Nemotron 7 + GLM 5): every hit shows
-      // its number at 18px gold-white, so the play shot reads as a battle.
-      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#fff6e8', 18);
+      // Real hits stay 18px gold-white; 1-damage ticks vs armour stay small
+      // and dim (FIX-ALL), so the escort "1" column stops shouting.
+      const dealt = damageAfterArmor(damage, enemy.armor);
+      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(dealt), dealt === 1 ? '#b8a67e' : '#fff6e8', dealt === 1 ? 11 : 18);
     }
     if (enemy.hp <= 0) {
       enemy.active = false;

@@ -168,6 +168,10 @@ export function buildDecor(random) {
     if (Math.hypot(x - LANTERN.x, y - LANTERN.y) < 60) continue;
     flowers.push({ x, y, color: i % 3 === 0 ? '#f2a7c3' : i % 3 === 1 ? '#ffd166' : '#c9a7f2', r: 3 + random() * 2.5 });
   }
+  // FIX-ALL: fixed gold flowers in the empty middle (verified clear of the
+  // path: nearest leg is 60px+ away), so the mid-field reads at thumbnail size.
+  const mid = [[360, 240], [430, 340], [500, 230], [560, 330], [700, 260], [840, 360], [900, 240], [760, 340]];
+  for (const [x, y] of mid) flowers.push({ x, y, color: '#ffd166', r: 5 });
   // Fireflies: a grove over the moonflower pond, and a few drifting through the garden.
   const fireflies = [];
   for (let i = 0; i < 9; i += 1) {
@@ -181,6 +185,10 @@ export function buildDecor(random) {
       x: 120 + random() * 1000, y: 90 + random() * 480,
       phase: random() * Math.PI * 2, amp: 5 + random() * 8, speed: 0.3 + random() * 0.5,
     });
+  }
+  // FIX-ALL: four more fireflies drifting through the empty middle.
+  for (const [x, y] of [[400, 300], [520, 260], [720, 320], [860, 280]]) {
+    fireflies.push({ x, y, phase: random() * Math.PI * 2, amp: 7, speed: 0.5 });
   }
   // Moonflowers blooming around the pond, and smooth stones at its edge.
   const moonflowers = [

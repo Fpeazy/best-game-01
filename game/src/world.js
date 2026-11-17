@@ -1,11 +1,5 @@
-// The game's rules and state, no drawing and no browser: coins, lives, score,
-// the build phase and the waves, tower placement and upgrades, enemies marching
-// the path, and the lantern light that dims as lives are lost. step() advances
-// one fixed step and returns what happened as bit flags. Nothing here allocates
-// after createWorld returns, except the small reused event lists.
-// Three difficulties scale the bugs and the starting purse. After wave 10 the
-// garden is won — and the Long Night begins, an endless stream with a mutator
-// on every night from wave 6 and a Moth Queen every fifth night.
+// Rules and state, no drawing, no browser: step() advances one fixed step.
+// After wave 10 the garden is won; the Long Night is endless with mutators.
 import { ABILITIES, ABILITY_ORDER, BOSS_COUNTDOWN, BUILD_SECONDS, DIFFICULTIES, EARLY_CALL_CAP, EARLY_CALL_PER_SEC, FLARE_DAMAGE, FLARE_RADIUS, FLARE_SLOW, FLARE_SLOW_DUR, MAX_POST_LEVEL, MAX_WAVE, MUTATORS, POST_UPGRADE_COST, PURR_DUR, PURR_SLOW, START_COINS, START_LIVES, SURGE_BONUS, SURGE_DUR, TARGET_LABELS, TARGET_MODES } from './config.js';
 import { buildDecor, buildPlots, distanceToPath, glowBonusAt, LANTERN, LANTERN_POSTS } from './garden.js';
 import { createTowers, TOWER_TYPES, upgradeCost } from './towers.js';

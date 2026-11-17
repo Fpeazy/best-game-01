@@ -310,11 +310,7 @@ export function createRenderer(canvas) {
     context.strokeStyle = PALETTE.path;
     context.lineWidth = PATH_WIDTH;
     context.stroke();
-    // Edge stones (v4, Fxzy: "visual tower defence lebih di perbagus"): small
-    // pale stones along both path edges, every ~64 px, alternating sides, so
-    // the lane reads instantly as a built road even at thumbnail size. Pure
-    // geometry from the waypoints — deterministic, never on a plot, post or
-    // the pond, and never in the gate or lantern mouth.
+    // Edge stones along both path edges, so the lane reads as a road.
     for (let i = 0; i < PATH_POINTS.length - 1; i += 1) {
       const a = PATH_POINTS[i];
       const b = PATH_POINTS[i + 1];
@@ -363,8 +359,7 @@ export function createRenderer(canvas) {
     context.fillRect(0, 180, 26, 8);
   }
 
-  // Fireflies: sharp four-point sparkles, not soft glow blobs (v4 sharpening).
-  // Dynamic — they drift, so they are drawn every frame over the baked garden.
+  // Fireflies: sharp sparkles, drawn every frame (they drift).
   function drawFireflies(world) {
     const t = world.state.elapsed;
     for (const fly of world.decor.fireflies) {
@@ -487,8 +482,7 @@ export function createRenderer(canvas) {
     text(`♥ ${hearts}`, LANTERN.x, LANTERN.y + 52, 18, PALETTE.heart, 'center', true);
   }
 
-  // Static plot beds (baked, perf v4): real garden soil — a brown gradient
-  // bed, darker at the bottom, with a few soil clumps — not a flat green disc.
+  // Static plot beds: brown soil gradient, darker at the bottom.
   function drawPlotsStatic(world) {
     for (let i = 0; i < world.plots.length; i += 1) {
       const plot = world.plots[i];
@@ -559,10 +553,7 @@ export function createRenderer(canvas) {
     context.save();
     context.translate(x, y);
     context.scale(1 + (1 - sq) * 0.6, sq);
-    // Somewhat-3D (v4, Fxzy: "kucingnya lucu tapi agak 3d"): every volume gets
-    // a top light and a bottom shade via this clipped gradient, so the cats read
-    // as cute clay/chibi-3D volumes lit by the lanterns — still canvas 2D, no
-    // engine change, silhouette first, shading second.
+    // Somewhat-3D volumes: top light + bottom shade, canvas 2D only.
     function volume(cx, cy, rad) {
       const key = `${cy},${rad}`;
       let shade = volumeGrads.get(key);
@@ -628,9 +619,7 @@ export function createRenderer(canvas) {
     context.strokeStyle = 'rgba(60, 30, 20, 0.35)';
     context.lineWidth = 2.5;
     context.stroke();
-    // Hard rim light (v4 sharpening, Nemotron's second check): a thin warm arc
-    // across the top of the body so each cat reads as a distinct unit against
-    // the dark night garden instead of melting into it.
+    // Hard warm rim-light arc on the body top.
     context.strokeStyle = 'rgba(255, 240, 200, 0.8)';
     context.lineWidth = 2;
     context.beginPath();

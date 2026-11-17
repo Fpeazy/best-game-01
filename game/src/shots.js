@@ -153,11 +153,23 @@ export function stageShot(name, world) {
   if (name === 'play') {
     // Wave 10 at the festival's peak: boss in phase 2+, lanterns flaring, a
     // dense escort stream — the frame must read as a battle at thumbnail size.
+    // FIX-ALL probe (seed 1): genuine festival + density only live while the
+    // boss is at x<360 (festival decays 0.12/s; escorts collapse after t~393),
+    // so capture at x>=350, festival>0.25: boss (358,420), alive 7, cascade on.
     runUntil(world, (state) => {
       if (state.phase !== PHASE_WAVE || state.wave !== 10) return false;
       const boss = bossOf(world);
-      return boss !== null && boss.phase >= 2 && state.festival > 0.5 && countAlive(world) >= 6 && countTowers(world) >= 7;
+      return boss !== null && boss.phase >= 2 && boss.x >= 350 && state.festival > 0.25 && countAlive(world) >= 6 && countTowers(world) >= 7;
     });
+    // The phase banner expired on the walk here, so re-show it (staging, as
+    // the title/win scenes already stage their festival): same real message.
+    world.state.message = 'Phase 2 — the Moth grows angry!';
+    world.state.messageTimer = 3;
+    // Festival faded to ~0.28 by the capture, so the wash reads dim; re-ignite
+    // it (staging, as the win scene does) and step 0.6s for fresh bursts.
+    // Boss walks ~25px in that time, staying centre-left.
+    world.state.festival = 1;
+    for (let i = 0; i < 0.6 / STEP; i += 1) world.step(STEP, true);
     // Fire the Flare Burst for the cover: a gold burst at the lantern, big
     // damage numbers in the air — the frame must read as a battle.
     if (world.state.phase === PHASE_WAVE) world.useAbility('flare');
@@ -185,7 +197,10 @@ export function stageShot(name, world) {
   for (let i = 0; i < 0.6 / STEP; i += 1) world.step(STEP, true);
   // Fresh starbursts outside the panel — gold lower-left over dark grass
   // (top-left blended with the road), pink over the pond, full alpha.
-  world.fx.spawnBurst(115, 580, '#ffd166', 24, 160, 0.9, 6);
+  // FIX-ALL: gold enlarged (40/200/8) + a second gold cluster (200,600),
+  // so the gold firework reads as strong as the pink one.
+  world.fx.spawnBurst(115, 580, '#ffd166', 40, 200, 0.9, 8);
+  world.fx.spawnBurst(200, 600, '#ffd166', 20, 120, 0.9, 5);
   world.fx.spawnBurst(1130, 140, '#ff9ec6', 24, 160, 0.9, 6);
   const won = world.state.phase === PHASE_WON;
   return { screen: won ? SCREEN_WIN : SCREEN_OVER, best: world.state.score };
