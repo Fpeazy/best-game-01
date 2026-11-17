@@ -132,8 +132,6 @@ export function createWorld(random) {
     state.bossCountdown = 0;
     cascadeSeed = 987654321;
     towers.resetCombo();
-    // Mochi, the hero cat, is already on the field: the best-covered plot she can
-    // actually swat from (her range is short, so the plot must hug the path).
     const mochiRange = TOWER_TYPES.mochi.range;
     let mochiPlot = null;
     for (const plot of plots) {
@@ -181,8 +179,6 @@ export function createWorld(random) {
 
   function startWave() {
     if (state.phase !== PHASE_BUILD) return false;
-    // Early call (tower-defense skill §7): calling the wave before the build
-    // timer runs out pays +1 coin per second skipped, capped at 10.
     const earlyBonus = Math.min(EARLY_CALL_CAP, Math.max(0, Math.ceil(state.buildTimer)) * EARLY_CALL_PER_SEC);
     if (earlyBonus > 0) {
       state.coins += earlyBonus;
@@ -200,7 +196,6 @@ export function createWorld(random) {
       : `${label} — ${wavePreview(state.wave)} · ${mut.icon} ${mut.name}`;
     if (earlyBonus > 0) state.message += ` · Early call +${earlyBonus}`;
     state.messageTimer = 3;
-    // Wave 10: a 5-second "BOSS INCOMING" warning before the Shadow Moth spawns.
     if (state.wave === MAX_WAVE && !state.endless) {
       state.bossCountdown = BOSS_COUNTDOWN;
       state.message = `⚠ BOSS INCOMING — the Shadow Moth arrives in ${BOSS_COUNTDOWN}s!`;
@@ -252,6 +247,7 @@ export function createWorld(random) {
     } else if (key === 'purr') {
       state.purrTimer = PURR_DUR;
       fx.spawnRing(LANTERN.x, LANTERN.y, 420, '#b8a7d9');
+      fx.spawnBurst(LANTERN.x, LANTERN.y, '#c9a7f2', 20, 150, 0.8, 3);
       fx.spawnText(LANTERN.x, LANTERN.y - 60, '♪ PURR WAVE!', '#c9a7f2', 24);
     }
     return events;
@@ -310,8 +306,6 @@ export function createWorld(random) {
     fx.spawnBurst(tower.x, tower.y - 10, '#ffd166', 12, 90, 0.5, 3);
     fx.spawnText(tower.x, tower.y - 34, 'LEVEL UP!', '#ffd166');
     if (tower.level === 3) {
-      // The final form arrives with a golden beam from the sky — the moment
-      // reads in a still screenshot as well as in motion.
       fx.spawnBeam(tower.x, 56, tower.y, 26, '#ffd166', 0.9);
       fx.spawnText(tower.x, tower.y - 52, 'FINAL FORM!', '#ffd166', 20);
       fx.triggerFlash(0.25);
@@ -359,7 +353,6 @@ export function createWorld(random) {
     state.coins += bonus + extra;
     state.earned += bonus + extra;
     state.score += bonus * 5;
-    // The kill chain is broken between waves: no kills, no combo.
     towers.resetCombo();
     state.clearBonus = `Wave clear! +${bonus + extra}`;
     state.clearBonusTimer = 4;
@@ -382,7 +375,6 @@ export function createWorld(random) {
     if (state.messageTimer > 0) state.messageTimer = Math.max(0, state.messageTimer - dt);
     if (state.clearBonusTimer > 0) state.clearBonusTimer = Math.max(0, state.clearBonusTimer - dt);
     if (state.festival > 0) state.festival = Math.max(0, state.festival - dt * 0.12);
-    // Ability cooldowns and buff timers tick on sim time.
     for (const slot of Object.values(state.abilities)) {
       slot.cd = Math.max(0, slot.cd - dt);
       if (slot.cd < 1e-9) slot.cd = 0;
@@ -408,8 +400,6 @@ export function createWorld(random) {
     }
 
     if (state.phase === PHASE_WAVE) {
-      // The boss countdown holds all spawning: nothing marches in while the
-      // "BOSS INCOMING" warning counts down.
       if (state.bossCountdown > 0) {
         const was = state.bossCountdown;
         state.bossCountdown = Math.max(0, state.bossCountdown - dt);
@@ -437,7 +427,6 @@ export function createWorld(random) {
           state.spawnTimer += spawnIntervalFor(type, state.wave);
         }
       }
-      // Purr Wave: every live bug is slowed while the buff lasts.
       if (state.purrTimer > 0) {
         for (const enemy of enemies.list) {
           if (!enemy.active) continue;
@@ -449,18 +438,15 @@ export function createWorld(random) {
       for (let i = 0; i < enemies.phaseEvents.length; i += 1) {
         const { enemy, phase } = enemies.phaseEvents[i];
         events |= EVENT_BOSS_PHASE;
-        // Short banners: v3 lines ran off the panel and overlapped the boss bar.
         state.message = phase === 3
           ? 'Phase 3 — it flies! Only fish & star cats can hit it!'
           : 'Phase 2 — the Moth grows angry!';
         state.messageTimer = 3;
-        // A phase change is a spectacle beat: the lanterns flare again, the
-        // boss bursts with light, a hit-stop punch.
         state.festival = 1;
         fx.triggerFlash(0.5);
         fx.addTrauma(0.7);
         fx.triggerHitStop(0.12);
-        fx.spawnBurst(enemy.x, enemy.y, '#ffd166', 24, 160, 0.9, 4);
+        fx.spawnBurst(enemy.x, enemy.y, '#ffd166', 36, 180, 0.9, 4);
         fx.spawnBurst(enemy.x, enemy.y, '#c9a7f2', 16, 120, 0.8, 3.5);
         fx.spawnRing(enemy.x, enemy.y, 200, '#ffd166');
       }
@@ -490,8 +476,6 @@ export function createWorld(random) {
         events |= EVENT_KILL;
         fx.spawnBurst(enemy.x, enemy.y, '#c9a7f2', 6, 70, 0.4, 2.5);
         fx.spawnText(enemy.x, enemy.y - enemy.radius - 14, `+${enemy.reward}`, '#ffd166', 20);
-        // Boss death (Nemotron item 5): a gold flash, a burst and a callout.
-        // This is the step's kill loop, so it fires the same step the boss dies.
         if (enemy.type === 'boss') {
           fx.triggerFlash(0.6);
           fx.spawnBurst(enemy.x, enemy.y, '#ffd166', 24, 180, 0.9, 4);

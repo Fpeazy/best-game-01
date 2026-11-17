@@ -34,7 +34,7 @@ export const TOWER_TYPES = {
   frosty: {
     key: 'frosty', name: 'Frosty Kitten', cost: 90, range: 170, damage: 6, rate: 1.0,
     chill: 0.7, chillDur: 2.5, color: '#bfe3f2', ear: '#8ec9e0', belly: '#eaf7ff', hat: 'earmuffs',
-    desc: 'Chills bugs, slows them', proj: 'frost', projSpeed: 380, canFly: false,
+    desc: 'Chills bugs, slows', proj: 'frost', projSpeed: 380, canFly: false,
     upgrade: [70, 120],
   },
 };
@@ -61,7 +61,6 @@ export function towerStats(type, level) {
     chill: def.chill ?? 0,
     chillDur: def.chillDur ?? 0,
   };
-  // Level-3 final forms.
   if (level >= 3) {
     if (type === 'fish') stats.splash *= 1.6;
     if (type === 'sleepy') stats.slow = 0.5;
@@ -196,21 +195,18 @@ export function createTowers(random, fx, glowAt) {
     return bestBoss ?? best;
   }
 
-  function hitEnemy(enemy, damage, crit) {
+  function hitEnemy(enemy, damage, crit, fromX) {
     if (!enemy.active) return false;
     enemy.hp -= damageAfterArmor(damage, enemy.armor);
+    const nx = enemy.x + (fromX === undefined ? 0 : enemy.x >= fromX ? 36 : -36);
     if (crit) {
-      // A crit reads at thumbnail size: a big gold number, a CRIT! callout, a
-      // short hit-stop and a shake punch (game-feel, large tier).
-      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#ffd166', 30);
-      fx.spawnText(enemy.x, enemy.y - enemy.radius - 34, 'CRIT!', '#ffd166', 22);
+      fx.spawnText(nx, enemy.y - enemy.radius - 6, String(damageAfterArmor(damage, enemy.armor)), '#ffd166', 30);
+      fx.spawnText(nx, enemy.y - enemy.radius - 34, 'CRIT!', '#ffd166', 22);
       fx.triggerHitStop(0.09);
       fx.addTrauma(0.3);
     } else {
-      // Real hits stay 18px gold-white; 1-damage ticks vs armour stay small
-      // and dim (FIX-ALL), so the escort "1" column stops shouting.
       const dealt = damageAfterArmor(damage, enemy.armor);
-      fx.spawnText(enemy.x, enemy.y - enemy.radius - 6, String(dealt), dealt === 1 ? '#b8a67e' : '#fff6e8', dealt === 1 ? 11 : 18);
+      fx.spawnText(nx, enemy.y - enemy.radius - 6, String(dealt), dealt === 1 ? '#b8a67e' : '#fff6e8', dealt === 1 ? 11 : 18);
     }
     if (enemy.hp <= 0) {
       enemy.active = false;
@@ -228,6 +224,7 @@ export function createTowers(random, fx, glowAt) {
     proj.kind = def.proj;
     proj.x = tower.x;
     proj.y = tower.y - 14;
+    proj.tx = tower.x;
     proj.target = target;
     proj.lx = target.x;
     proj.ly = target.y;
@@ -267,13 +264,12 @@ export function createTowers(random, fx, glowAt) {
           for (let j = 0; j < count; j += 1) {
             const enemy = enemies[j];
             if (!enemy.active) continue;
-            if (Math.hypot(enemy.x - proj.lx, enemy.y - proj.ly) <= proj.splash + enemy.radius) hitEnemy(enemy, proj.damage, proj.crit);
+            if (Math.hypot(enemy.x - proj.lx, enemy.y - proj.ly) <= proj.splash + enemy.radius) hitEnemy(enemy, proj.damage, proj.crit, proj.tx);
           }
         } else if (proj.target !== null && proj.target.active) {
           fx.spawnBurst(proj.lx, proj.ly, proj.color, 4, 60, 0.3, 2.5);
           applyChill(proj.target, proj, now);
-          if (hitEnemy(proj.target, proj.damage, proj.crit)) {
-            // The killing tower's kill count is tallied by the caller through `killed`.
+          if (hitEnemy(proj.target, proj.damage, proj.crit, proj.tx)) {
           }
         }
       } else {
@@ -306,7 +302,7 @@ export function createTowers(random, fx, glowAt) {
             enemy.slowUntil = now + 0.7;
             enemy.slowFactor = stats.slow;
             purred = true;
-            if (hitEnemy(enemy, damage, false)) tower.kills += 1;
+            if (hitEnemy(enemy, damage, false, tower.x)) tower.kills += 1;
           }
           if (purred) fx.spawnRing(tower.x, tower.y, range, def.color);
         }
@@ -316,8 +312,6 @@ export function createTowers(random, fx, glowAt) {
       if (tower.cooldown > 0) continue;
       const target = acquire(tower, range, enemies, count);
       if (target === null) {
-        // No target: never bank negative cooldown, or the tower machine-guns
-        // the next bug that wanders into range (a burst of one shot a step).
         tower.cooldown = 0;
         continue;
       }
@@ -325,12 +319,10 @@ export function createTowers(random, fx, glowAt) {
       if (def.melee) {
         tower.squash = 0.18;
         fx.spawnArc(tower.x, tower.y, Math.atan2(target.y - tower.y, target.x - tower.x));
-        if (hitEnemy(target, damage, false)) tower.kills += 1;
-        // Mochi Prime swats twice.
-        if (tower.level >= 3 && target.active && hitEnemy(target, damage, false)) tower.kills += 1;
+        if (hitEnemy(target, damage, false, tower.x)) tower.kills += 1;
+        if (tower.level >= 3 && target.active && hitEnemy(target, damage, false, tower.x)) tower.kills += 1;
       } else {
         fireProjectile(tower, target, { damage, splash: stats.splash, chill: stats.chill, chillDur: stats.chillDur });
-        // Yarnball's final form lobs two balls at once.
         if (tower.type === 'yarn' && tower.level >= 3) fireProjectile(tower, target, { damage, splash: stats.splash, chill: stats.chill, chillDur: stats.chillDur });
       }
     }

@@ -28,7 +28,6 @@ const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() 
 const canvas = document.getElementById('game');
 const status = document.getElementById('status');
 const world = createWorld(createRandom(seed));
-// Exposed for headless playtests (and curious players): the live game state.
 window.__world = world;
 const renderer = createRenderer(canvas);
 
@@ -44,7 +43,6 @@ function saveBest(value) {
   try {
     window.localStorage.setItem(BEST_KEY, String(value));
   } catch {
-    // Storage can be off (private windows): the best score then lasts this visit only.
   }
 }
 
@@ -161,7 +159,6 @@ function runGame() {
     const towerTypes = ['yarn', 'fish', 'sleepy', 'star', 'frosty', 'mochi'];
     const difficulties = ['easy', 'normal', 'hard'];
     if (screen === SCREEN_TITLE) {
-      // Keys 1-3 pick a difficulty on the title screen.
       for (let i = 0; i < 3; i += 1) {
         if (actions & towerKeys[i]) {
           world.setDifficulty(difficulties[i]);
@@ -343,7 +340,6 @@ function runGame() {
     else if (screen === SCREEN_OVER) drawOver(renderer.context, renderer.text, world, best);
   }
 
-  // Leaving the tab pauses a running game rather than letting bugs march unseen.
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && screen === SCREEN_PLAY) {
       screen = SCREEN_PAUSED;

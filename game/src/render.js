@@ -34,7 +34,6 @@ export function createRenderer(canvas) {
   const livesLabel = cachedLabel('');
   const scoreLabel = cachedLabel('Score ');
   const lightLabel = cachedLabel('Lantern Light ');
-  // Perf: gradients built once and reused; glows are one stamped sprite.
   const glowSprite = (() => {
     const s = document.createElement('canvas');
     s.width = 256;
@@ -61,8 +60,6 @@ export function createRenderer(canvas) {
     grad.addColorStop(1, PALETTE.grassDark);
     return grad;
   })();
-  // Full-screen overlays, baked once as sprites (perf, v4): stamping a bitmap
-  // is a fraction of a gradient fill in software rendering.
   function bakeOverlay(stops) {
     const s = document.createElement('canvas');
     s.width = FIELD.width;
@@ -87,10 +84,7 @@ export function createRenderer(canvas) {
     g.fillRect(0, 0, FIELD.width, FIELD.height);
     return s;
   })();
-  // Per-volume shading gradients, keyed by (centre-y, radius) in local coords.
   const volumeGrads = new Map();
-  // The baked static garden: sky, field, decor, path, plot beds. Re-baked
-  // whenever the world's decor object changes (new world / new seed).
   let staticLayer = null;
   let staticDecor = null;
 
@@ -98,8 +92,6 @@ export function createRenderer(canvas) {
     const ratio = window.devicePixelRatio || 1;
     const width = Math.round(window.innerWidth * ratio);
     const height = Math.round(window.innerHeight * ratio);
-    // Assigning canvas.width clears the canvas even to the same value, so
-    // only assign when it actually changed (perf, v4).
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
@@ -137,11 +129,9 @@ export function createRenderer(canvas) {
     context.closePath();
   }
 
-  // Static sky (baked into the background layer, perf v4): gradient + moon.
   function drawSkyStatic(world) {
     context.fillStyle = skyGrad;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
-    // The moon, high over the garden, clear of the pond.
     context.fillStyle = PALETTE.moon;
     context.beginPath();
     context.arc(1215, 72, 30, 0, Math.PI * 2);
@@ -157,8 +147,6 @@ export function createRenderer(canvas) {
     context.fill();
   }
 
-  // Twinkling stars, dynamic — only the ones above the field (y < 56) are
-  // ever visible; the rest are covered by the garden fill.
   function drawStars(world) {
     const t = world.state.elapsed;
     for (const star of world.decor.stars) {
@@ -198,8 +186,6 @@ export function createRenderer(canvas) {
       context.arc(flower.x, flower.y, flower.r * 0.4, 0, Math.PI * 2);
       context.fill();
     }
-    // The moonflower pond: water, lily pads, moonflowers and stones.
-    // Night water: deep teal, so the pond reads as water at night, not daylight.
     context.fillStyle = '#4a8a9a';
     context.beginPath();
     context.ellipse(POND.x, POND.y, POND.rx, POND.ry, 0, 0, Math.PI * 2);
@@ -240,8 +226,6 @@ export function createRenderer(canvas) {
       context.ellipse(stone.x, stone.y, stone.r, stone.r * 0.7, 0.3, 0, Math.PI * 2);
       context.fill();
     }
-    // Cat statues, stone lantern shrines and bushes fill the middle (v4):
-    // the garden reads as a garden even where no tower stands.
     for (const bush of world.decor.bushes) {
       context.fillStyle = '#1d3d2e';
       context.beginPath();
@@ -269,7 +253,6 @@ export function createRenderer(canvas) {
       context.fill();
     }
     for (const statue of world.decor.statues) {
-      // A stone cat, sitting: body, ears, tail — grey stone, gold eyes.
       context.fillStyle = '#7a7a82';
       context.beginPath();
       context.arc(statue.x, statue.y, statue.r, 0, Math.PI * 2);
@@ -298,7 +281,6 @@ export function createRenderer(canvas) {
       context.fill();
     }
     context.globalAlpha = 1;
-    // The winding path: a wide edge stroke, then the cream path on top.
     context.lineJoin = 'round';
     context.lineCap = 'round';
     context.strokeStyle = PALETTE.pathEdge;
@@ -310,7 +292,6 @@ export function createRenderer(canvas) {
     context.strokeStyle = PALETTE.path;
     context.lineWidth = PATH_WIDTH;
     context.stroke();
-    // Edge stones along both path edges, so the lane reads as a road.
     for (let i = 0; i < PATH_POINTS.length - 1; i += 1) {
       const a = PATH_POINTS[i];
       const b = PATH_POINTS[i + 1];
@@ -343,7 +324,6 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // A dashed lane line down the middle: the path reads as a road at a glance.
     context.strokeStyle = 'rgba(255, 246, 220, 0.45)';
     context.lineWidth = 2;
     context.setLineDash([14, 18]);
@@ -352,14 +332,12 @@ export function createRenderer(canvas) {
     for (let i = 1; i < PATH_POINTS.length; i += 1) context.lineTo(PATH_POINTS[i].x, PATH_POINTS[i].y);
     context.stroke();
     context.setLineDash([]);
-    // Garden gate, where the bugs march in.
     context.fillStyle = '#6b4a2f';
     context.fillRect(0, 132, 10, 56);
     context.fillRect(0, 132, 26, 8);
     context.fillRect(0, 180, 26, 8);
   }
 
-  // Fireflies: sharp sparkles, drawn every frame (they drift).
   function drawFireflies(world) {
     const t = world.state.elapsed;
     for (const fly of world.decor.fireflies) {
@@ -389,7 +367,6 @@ export function createRenderer(canvas) {
   }
 
   function drawGlow(x, y, radius, alpha) {
-    // One stamped sprite instead of a fresh gradient per call (perf, v4).
     context.save();
     context.globalAlpha = alpha;
     context.drawImage(glowSprite, x - radius, y - radius, radius * 2, radius * 2);
@@ -397,7 +374,6 @@ export function createRenderer(canvas) {
   }
 
   function drawLanternPost(post, level, light, t, festival) {
-    // The glow zone on the ground: players can SEE where the bonus reaches.
     const zone = postGlowRadius(level);
     context.fillStyle = 'rgba(255, 190, 90, 0.10)';
     context.beginPath();
@@ -410,7 +386,6 @@ export function createRenderer(canvas) {
     context.setLineDash([]);
     const flicker = 0.85 + 0.15 * Math.sin(t * 2.3 + post.x);
     drawGlow(post.x, post.y - 18, 110 * (1 + festival * 0.6), 0.55 * light * flicker * (1 + festival * 0.6));
-    // Sharp core: a white-hot centre + a hard gold rim, not a soft blob.
     context.fillStyle = 'rgba(255, 243, 201, 0.95)';
     context.beginPath();
     context.arc(post.x, post.y - 18, 7, 0, Math.PI * 2);
@@ -439,7 +414,6 @@ export function createRenderer(canvas) {
     context.stroke();
     context.fillStyle = '#8a5a2b';
     context.fillRect(post.x - 13, post.y - 34, 26, 5);
-    // Level pips at the base.
     for (let s = 0; s < level; s += 1) {
       context.fillStyle = '#ffd166';
       context.beginPath();
@@ -451,12 +425,10 @@ export function createRenderer(canvas) {
   function drawBigLantern(world, light, t, festival) {
     const flicker = 0.9 + 0.1 * Math.sin(t * 1.8);
     drawGlow(LANTERN.x, LANTERN.y, 190 * (1 + festival * 0.6), 0.6 * light * flicker * (1 + festival * 0.5));
-    // Hard white-hot core at the lantern's heart (v4 sharpening).
     context.fillStyle = 'rgba(255, 243, 201, 0.95)';
     context.beginPath();
     context.arc(LANTERN.x, LANTERN.y - 6, 12, 0, Math.PI * 2);
     context.fill();
-    // A stone base, then the big paper lantern.
     context.fillStyle = '#7a6a58';
     roundRect(LANTERN.x - 30, LANTERN.y + 18, 60, 16, 6);
     context.fill();
@@ -474,12 +446,10 @@ export function createRenderer(canvas) {
     }
     context.fillStyle = '#8a5a2b';
     context.fillRect(LANTERN.x - 10, LANTERN.y - 48, 20, 6);
-    // Its light, in hearts.
     const hearts = Math.ceil(world.state.lives);
     text(`♥ ${hearts}`, LANTERN.x, LANTERN.y + 52, 18, PALETTE.heart, 'center', true);
   }
 
-  // Static plot beds: brown soil gradient, darker at the bottom.
   function drawPlotsStatic(world) {
     for (let i = 0; i < world.plots.length; i += 1) {
       const plot = world.plots[i];
@@ -547,7 +517,6 @@ export function createRenderer(canvas) {
     context.save();
     context.translate(x, y);
     context.scale(1 + (1 - sq) * 0.6, sq);
-    // Somewhat-3D volumes: top light + bottom shade, canvas 2D only.
     function volume(cx, cy, rad) {
       const key = `${cy},${rad}`;
       let shade = volumeGrads.get(key);
@@ -566,12 +535,10 @@ export function createRenderer(canvas) {
       context.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
       context.restore();
     }
-    // A soft drop shadow grounds the cat on the plot.
     context.fillStyle = 'rgba(8, 6, 20, 0.38)';
     context.beginPath();
     context.ellipse(0, r * 0.88, r * 0.9, r * 0.26, 0, 0, Math.PI * 2);
     context.fill();
-    // Tail, wagging.
     context.strokeStyle = def.color;
     context.lineWidth = 6;
     context.lineCap = 'round';
@@ -580,8 +547,6 @@ export function createRenderer(canvas) {
     context.moveTo(-r * 0.8, r * 0.4);
     context.quadraticCurveTo(-r * 1.5, r * 0.2 + wag, -r * 1.3, -r * 0.5 + wag);
     context.stroke();
-    // Ears, with a darker inner ear for depth (the head volume drawn later
-    // covers the ear bases, so the ears sit behind the head).
     context.fillStyle = def.ear;
     context.beginPath();
     context.moveTo(-r * 0.62, -r * 0.55);
@@ -604,7 +569,6 @@ export function createRenderer(canvas) {
     context.lineTo(r * 0.3, -r * 0.88);
     context.closePath();
     context.fill();
-    // Body.
     context.fillStyle = def.color;
     context.beginPath();
     context.arc(0, 0, r, 0, Math.PI * 2);
@@ -613,7 +577,6 @@ export function createRenderer(canvas) {
     context.strokeStyle = 'rgba(60, 30, 20, 0.35)';
     context.lineWidth = 2.5;
     context.stroke();
-    // Hard warm rim-light arc on the body top.
     context.strokeStyle = 'rgba(255, 240, 200, 0.8)';
     context.lineWidth = 2;
     context.beginPath();
@@ -631,12 +594,10 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(0, -r * 0.28, r * 0.66 - 1, Math.PI * 1.15, Math.PI * 1.85);
     context.stroke();
-    // A small top-left highlight on the head — the lantern light catching it.
     context.fillStyle = 'rgba(255, 255, 255, 0.3)';
     context.beginPath();
     context.ellipse(-r * 0.24, -r * 0.54, r * 0.16, r * 0.1, -0.5, 0, Math.PI * 2);
     context.fill();
-    // Belly.
     context.fillStyle = def.belly;
     context.beginPath();
     context.ellipse(0, r * 0.5, r * 0.52, r * 0.36, 0, 0, Math.PI * 2);
@@ -645,7 +606,6 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.ellipse(-r * 0.18, r * 0.38, r * 0.18, r * 0.1, -0.4, 0, Math.PI * 2);
     context.fill();
-    // Paws, slightly forward of the body.
     context.fillStyle = def.belly;
     context.strokeStyle = 'rgba(60, 30, 20, 0.3)';
     context.lineWidth = 1.5;
@@ -655,8 +615,6 @@ export function createRenderer(canvas) {
       context.fill();
       context.stroke();
     }
-    // Face, on the head volume (head centre 0, -0.28r): eyes (closed when
-    // sleeping), nose, whiskers.
     if (sleeping) {
       context.strokeStyle = '#4a3423';
       context.lineWidth = 2;
@@ -695,10 +653,8 @@ export function createRenderer(canvas) {
     context.moveTo(r * 0.48, -r * 0.06);
     context.lineTo(r * 0.95, r * 0.04);
     context.stroke();
-    // Level 2: each tower's own hat, so the types read apart at a glance.
     if (level >= 2 && def.hat !== 'none') {
       if (def.hat === 'bow') {
-        // A pink bow between the ears.
         context.fillStyle = '#e86a7a';
         context.beginPath();
         context.moveTo(0, -r * 0.85);
@@ -714,7 +670,6 @@ export function createRenderer(canvas) {
         context.arc(0, -r * 0.85, r * 0.14, 0, Math.PI * 2);
         context.fill();
       } else if (def.hat === 'cap') {
-        // A blue sailor cap with a brim.
         context.fillStyle = '#3a6a9a';
         context.beginPath();
         context.ellipse(0, -r * 0.85, r * 0.62, r * 0.22, 0, Math.PI, 0);
@@ -725,7 +680,6 @@ export function createRenderer(canvas) {
         context.arc(0, -r * 0.92, r * 0.1, 0, Math.PI * 2);
         context.fill();
       } else if (def.hat === 'nightcap') {
-        // A floppy purple nightcap with a pompom.
         context.fillStyle = '#7a5aa8';
         context.beginPath();
         context.moveTo(-r * 0.55, -r * 0.75);
@@ -738,7 +692,6 @@ export function createRenderer(canvas) {
         context.arc(r * 0.55, -r * 1.28, r * 0.16, 0, Math.PI * 2);
         context.fill();
       } else if (def.hat === 'wizard') {
-        // A tall gold wizard hat with stars.
         context.fillStyle = '#e8a94e';
         context.beginPath();
         context.moveTo(-r * 0.55, -r * 0.75);
@@ -753,7 +706,6 @@ export function createRenderer(canvas) {
         context.fill();
         context.fillRect(-r * 0.55, -r * 0.82, r * 1.1, r * 0.12);
       } else if (def.hat === 'earmuffs') {
-        // Blue earmuffs: a band over the head, puffs on the ears.
         context.strokeStyle = '#5a8ab0';
         context.lineWidth = 4;
         context.beginPath();
@@ -766,7 +718,6 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // Level 3: a golden scarf as well, and a bigger cat.
     if (level >= 3) {
       context.strokeStyle = '#ffd166';
       context.lineWidth = 7;
@@ -812,7 +763,6 @@ export function createRenderer(canvas) {
         context.beginPath();
         context.arc(tower.x, tower.y, 26, 0, Math.PI * 2);
         context.fill();
-        // A golden sparkle above every tower standing in the light.
         drawStar4(tower.x + 18, tower.y - 30, 6, '#ffd166');
       }
       const size = tower.type === 'mochi' ? 24 : 20;
@@ -824,7 +774,6 @@ export function createRenderer(canvas) {
       context.stroke();
       context.globalAlpha = 1;
       drawCat(tower.x, tower.y, size * (1 + 0.12 * (tower.level - 1)), def, tower.level, tower.squash, 0, tower.type === 'sleepy');
-      // What the tower holds: a yarn ball, a fish, a star wand, a snowflake — or nothing (Mochi swats).
       if (tower.type === 'yarn') {
         context.fillStyle = '#f2a7c3';
         context.beginPath();
@@ -869,8 +818,6 @@ export function createRenderer(canvas) {
         text('z', tower.x + 20, tower.y - 22, 13, PALETTE.muted, 'center', true);
         text('z', tower.x + 28, tower.y - 32, 10, PALETTE.muted, 'center', true);
       } else if (tower.type === 'mochi') {
-        // Mochi swats with a little fly-swatter: handle + mesh head, so the
-        // hero reads as the melee cat at a glance.
         context.strokeStyle = '#8a5a2b';
         context.lineWidth = 3;
         context.beginPath();
@@ -889,7 +836,6 @@ export function createRenderer(canvas) {
         context.lineTo(tower.x + 26, tower.y - 4);
         context.stroke();
       }
-      // Level pips.
       for (let s = 0; s < tower.level; s += 1) {
         context.fillStyle = '#ffd166';
         context.beginPath();
@@ -897,7 +843,6 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // The tower being placed follows the mouse as a ghost.
     if (world.state.placing !== null && world.state.hoverPlot >= 0) {
       const plot = world.plots[world.state.hoverPlot];
       if (plot.tower === null) {
@@ -919,8 +864,6 @@ export function createRenderer(canvas) {
     const bob = Math.sin(enemy.wobble * 1.7) * 2;
     context.save();
     context.translate(enemy.x, enemy.y + bob);
-    // The boss and queen cast a drop shadow: they read as volumes hovering
-    // over the garden, not flat stickers on it (v4 spectacle).
     if (enemy.type === 'boss' || enemy.type === 'queen') {
       context.fillStyle = 'rgba(8, 6, 20, 0.4)';
       context.beginPath();
@@ -928,8 +871,6 @@ export function createRenderer(canvas) {
       context.fill();
     }
     if (enemy.type === 'moth' || enemy.type === 'queen' || enemy.type === 'boss') {
-      // Fluttering wings: pale lavender for the moth, pink for the queen, wide and
-      // dark-rimmed for the boss (wider still in its flying phase).
       const flap = Math.sin(enemy.wobble * 2.4) * 0.5;
       const wingColor = enemy.type === 'boss' ? '#6b4a8e' : enemy.type === 'queen' ? '#f2a7c3' : '#d9c8f2';
       const wingR = enemy.type === 'boss' ? enemy.radius * 1.15 : enemy.radius * 0.95;
@@ -948,7 +889,6 @@ export function createRenderer(canvas) {
       context.fill();
       context.restore();
     }
-    // The zip bug is long and amber, with speed lines; the beetle is a big armoured dome.
     if (enemy.type === 'zip') {
       context.strokeStyle = 'rgba(245, 166, 91, 0.7)';
       context.lineWidth = 2;
@@ -966,7 +906,6 @@ export function createRenderer(canvas) {
     context.arc(0, 0, enemy.radius, 0, Math.PI * 2);
     context.fill();
     if (enemy.type === 'boss' || enemy.type === 'queen') {
-      // Cached by radius (perf, v4): the boss radius never changes.
       let shade = volumeGrads.get(`boss,${enemy.radius}`);
       if (shade === undefined) {
         shade = context.createLinearGradient(0, -enemy.radius, 0, enemy.radius);
@@ -987,7 +926,6 @@ export function createRenderer(canvas) {
     context.lineWidth = enemy.type === 'boss' ? 7 : 2;
     context.stroke();
     if (enemy.type === 'moth') {
-      // Wing spots: the flutter moth is a moth, not a pale blob.
       context.fillStyle = 'rgba(120, 90, 160, 0.55)';
       context.beginPath();
       context.arc(-enemy.radius * 0.9, -enemy.radius * 0.5, enemy.radius * 0.14, 0, Math.PI * 2);
@@ -1012,7 +950,6 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     if (enemy.type === 'mite') {
-      // Tiny legs, so the mite never reads as a moth.
       context.strokeStyle = '#2c1f3d';
       context.lineWidth = 2;
       context.beginPath();
@@ -1027,8 +964,6 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     if (enemy.type === 'beetle') {
-      // A lighter dome crescent on the shell + a top highlight, so the beetle
-      // reads as an armoured dome, not a flat dark disc.
       context.fillStyle = '#5a3a6e';
       context.beginPath();
       context.arc(0, -enemy.radius * 0.25, enemy.radius * 0.7, Math.PI, 0);
@@ -1054,7 +989,6 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     if (enemy.type === 'boss') {
-      // A real golden crown with red gems — the first thing the eye lands on.
       const r = enemy.radius;
       context.fillStyle = '#ffd166';
       context.beginPath();
@@ -1077,7 +1011,6 @@ export function createRenderer(canvas) {
       context.arc(r * 0.28, -r * 0.8, r * 0.08, 0, Math.PI * 2);
       context.fill();
     } else if (enemy.type === 'queen') {
-      // A crown of shadow antennae with golden tips.
       context.strokeStyle = '#c9a7f2';
       context.lineWidth = 3;
       for (const dx of [-14, 0, 14]) {
@@ -1093,7 +1026,6 @@ export function createRenderer(canvas) {
       context.arc(20, -enemy.radius - 16, 3, 0, Math.PI * 2);
       context.fill();
     }
-    // Glowing eyes, looking toward the lantern; red when the boss enrages.
     const look = enemy.angle;
     const ex = Math.cos(look) * enemy.radius * 0.3;
     const ey = Math.sin(look) * enemy.radius * 0.3;
@@ -1107,7 +1039,6 @@ export function createRenderer(canvas) {
     context.arc(ex + enemy.radius * 0.32, ey - enemy.radius * 0.18, enemy.radius * 0.16, 0, Math.PI * 2);
     context.fill();
     context.restore();
-    // Health bar when hurt.
     if (enemy.hp < enemy.maxHp) {
       const w = enemy.radius * 2;
       const ratio = Math.max(0, enemy.hp / enemy.maxHp);
@@ -1122,10 +1053,7 @@ export function createRenderer(canvas) {
     const t = world.state.elapsed;
     for (const enemy of world.enemies.list) {
       if (!enemy.active) continue;
-      // The boss carries its own warm rim light, so it never reads as a dark blob.
-      // Halo thinned in v4 (sharp rim does the work now, not a soft wash).
       if (enemy.type === 'boss') drawGlow(enemy.x, enemy.y, 200, 0.4);
-      // Flying bugs cast a soft ground shadow, so they read as flying.
       if (enemy.flying) {
         context.fillStyle = 'rgba(20, 10, 30, 0.25)';
         context.beginPath();
@@ -1189,7 +1117,6 @@ export function createRenderer(canvas) {
       context.beginPath();
       context.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
       context.stroke();
-      // A second, tighter ring: the shockwave reads as a hard edge, not a halo.
       context.globalAlpha = (ring.life / ring.maxLife) * 0.5;
       context.lineWidth = 2;
       context.beginPath();
@@ -1232,8 +1159,6 @@ export function createRenderer(canvas) {
       }
     }
     context.globalAlpha = 1;
-    // Damage numbers: bold, high-contrast, with a hard dark outline so they
-    // read at thumbnail size against any background.
     for (const t of fx.texts) {
       if (!t.active) continue;
       context.globalAlpha = Math.min(1, (t.life / t.maxLife) * 1.5);
@@ -1248,8 +1173,6 @@ export function createRenderer(canvas) {
       context.fillText(t.text, t.x, t.y);
     }
     context.globalAlpha = 1;
-    // Golden beams: a hard solid core stripe inside the soft column, so the
-    // beam has a defined edge instead of fading into haze.
     for (const b of fx.beams) {
       if (!b.active) continue;
       const a = (b.life / b.maxLife) * 0.8;
@@ -1271,18 +1194,16 @@ export function createRenderer(canvas) {
     context.globalCompositeOperation = 'lighter';
     const spots = [];
     for (let i = 0; i < LANTERN_POSTS.length; i += 1) {
-      spots.push({ x: LANTERN_POSTS[i].x, y: LANTERN_POSTS[i].y - 18, r: 150, a: 0.20 });
+      spots.push({ x: LANTERN_POSTS[i].x, y: LANTERN_POSTS[i].y - 18, r: 150, a: 0.26 });
     }
-    spots.push({ x: LANTERN.x, y: LANTERN.y - 6, r: 240, a: 0.30 });
+    spots.push({ x: LANTERN.x, y: LANTERN.y - 6, r: 240, a: 0.34 });
     for (const enemy of world.enemies.list) {
       if (enemy.active && enemy.type === 'boss') spots.push({ x: enemy.x, y: enemy.y, r: 200, a: 0.14 });
     }
     for (const spot of spots) {
-      // Stamped sprite (perf, v4) — same gold pool as the old gradient fill.
       context.globalAlpha = spot.a * (1 + festival * 0.6);
       context.drawImage(glowSprite, spot.x - spot.r, spot.y - spot.r, spot.r * 2, spot.r * 2);
       context.globalAlpha = 1;
-      // Hard core: a small solid bright disc at the light's heart.
       context.fillStyle = `rgba(255, 243, 201, ${Math.min(0.9, spot.a * 2.4)})`;
       context.beginPath();
       context.arc(spot.x, spot.y, 14, 0, Math.PI * 2);
@@ -1293,7 +1214,6 @@ export function createRenderer(canvas) {
 
   function drawVignette(world) {
     const light = Math.max(world.lightLevel(), world.state.festival * 0.9);
-    // Night always carries a little vignette; losing lives deepens it.
     context.save();
     context.globalAlpha = 0.22 + (1 - light) * 0.3;
     context.drawImage(vignetteSprite, 0, 0);
@@ -1333,8 +1253,6 @@ export function createRenderer(canvas) {
     text(scoreLabel(`${state.score}`), 372, 37, 22, PALETTE.text, 'left', true);
     text(lightLabel(`${Math.round(world.lightLevel() * 100)}%`), 520, 37, 18, '#ffb347', 'left', true);
     text(`Best ${best}`, 700, 37, 18, PALETTE.muted, 'left');
-    // Ability chips (v4): icon + hotkey + READY / cooldown seconds. A surge or
-    // purr that is running shows ON in gold instead of its cooldown.
     for (const chip of abilityRects()) {
       const def = ABILITIES[chip.key];
       const slot = state.abilities[chip.key];
@@ -1371,7 +1289,6 @@ export function createRenderer(canvas) {
       text('★', 30 + i * 22, 88, 18, filled ? '#ffd166' : 'rgba(255, 246, 232, 0.25)', 'left', true);
     }
     text('COMBO', 140, 87, 13, combo >= 3 ? '#ffd166' : PALETTE.muted, 'left', true);
-    // Wave-clear bonus as short stacked text under the meter (Nemotron Stage 4).
     if (world.state.clearBonusTimer > 0) {
       context.globalAlpha = Math.min(1, world.state.clearBonusTimer);
       text(world.state.clearBonus, 16, 112, 12, '#ffd166', 'left', true);
@@ -1441,11 +1358,10 @@ export function createRenderer(canvas) {
       context.stroke();
       drawCat(rect.x + 26, rect.y + 38, 16, card.def, 1, 0, 0, card.type === 'sleepy');
       text(card.def.name, rect.x + 48, rect.y + 26, 12, PALETTE.text, 'left', true);
-      const cost = card.type === 'mochi' ? 'Hero — on the field' : `Cost ${card.def.cost}`;
+      const cost = card.type === 'mochi' ? 'Hero cat' : `Cost ${card.def.cost}`;
       text(cost, rect.x + 48, rect.y + 44, 12, affordable ? PALETTE.gold : '#ff8a9a', 'left', true);
       text(card.def.desc, rect.x + 48, rect.y + 62, 10, PALETTE.muted, 'left');
     }
-    // Selected tower or lantern-post panel.
     const panel = selectedPanelRect();
     const selected = state.selected;
     context.fillStyle = 'rgba(255, 246, 232, 0.08)';
@@ -1456,7 +1372,6 @@ export function createRenderer(canvas) {
       const stats = towerStats(selected.type, selected.level);
       drawCat(panel.x + 22, panel.y + 38, 15, def, selected.level, 0, 0, selected.type === 'sleepy');
       text(`${def.name}  ${'★'.repeat(selected.level)}${'☆'.repeat(3 - selected.level)}`, panel.x + 42, panel.y + 24, 11, PALETTE.text, 'left', true);
-      // Targeting mode (v4): click the name row (or press T) to cycle it.
       text(`DMG ${Math.round(stats.damage)}  RNG ${Math.round(stats.range)}  🎯 ${TARGET_LABELS[selected.targetMode ?? 'first']}`, panel.x + 42, panel.y + 42, 10, PALETTE.muted, 'left');
       const upCost = selected.level < MAX_LEVEL ? TOWER_TYPES[selected.type].upgrade[selected.level - 1] : null;
       const upRect = selectedUpgradeRect(panel);
@@ -1483,8 +1398,6 @@ export function createRenderer(canvas) {
       context.fill();
       text(cost === null ? 'MAX LEVEL' : `Upgrade ${cost}`, upRect.x + upRect.width / 2, upRect.y + 17, 12, canUp ? PALETTE.gold : PALETTE.muted, 'center', true);
     } else {
-      // Next-wave panel (v4): the incoming list + WIN/LOSE, always visible —
-      // the top entries all state the goal and the next wave in the HUD.
       const next = state.phase === PHASE_BUILD ? state.wave : state.wave + 1;
       const nextLabel = state.endless ? `Night ${next - 10}` : next > 10 ? 'Long Night' : `Wave ${next}`;
       let preview = next > 10 && !state.endless ? 'Win the garden first!' : wavePreview(next);
@@ -1499,7 +1412,6 @@ export function createRenderer(canvas) {
       }
       text('Click a tower or a lantern post.', panel.x + 10, panel.y + 71, 9, PALETTE.muted, 'left');
     }
-    // Start wave button (build phase) or the wave status.
     const start = startWaveRect();
     if (state.phase === PHASE_BUILD) {
       const pulse = 0.75 + 0.25 * Math.sin(state.elapsed * 4);
@@ -1533,10 +1445,7 @@ export function createRenderer(canvas) {
   function drawMessage(world) {
     const state = world.state;
     if (state.messageTimer <= 0 || state.message === '') return;
-    // During the boss countdown the warning pill carries the message instead.
     if (state.bossCountdown > 0) return;
-    // A dark pill behind the banner (v4 fix): the v3 banner was white text on
-    // pale green, overlapping the boss bar and cut off at the edges.
     const y = bossActive(world) !== null ? 112 : 96;
     context.font = `700 20px ${FONT}`;
     const w = Math.min(FIELD.width - 32, context.measureText(state.message).width + 36);
@@ -1576,7 +1485,6 @@ export function createRenderer(canvas) {
     drawEnemies(world);
     drawProjectiles(world);
     drawEffects(world);
-    // Festival wash + flash: gold over the field only; HUD stays readable.
     if (festival > 0) {
       context.save();
       context.globalAlpha = festival;

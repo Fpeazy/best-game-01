@@ -37,8 +37,6 @@ function button(ctx, textFn, rect, label, sub) {
 }
 
 export function drawTitle(ctx, textFn, drawCat, world, best) {
-  // Lighter dim so the garden reads through, then a warm lantern halo ringing
-  // the panel (v4, Nemotron Stage 5): the title must read instantly.
   panel(ctx, textFn, 290, 70, 700, 560, 0.55);
   const halo = ctx.createRadialGradient(640, 350, 60, 640, 350, 480);
   halo.addColorStop(0, 'rgba(255, 209, 102, 0)');
@@ -50,15 +48,12 @@ export function drawTitle(ctx, textFn, drawCat, world, best) {
   textFn("Mochi's", 640, 170, 64, '#ffd166', 'center', true);
   textFn('Lantern Garden', 640, 232, 64, PALETTE.text, 'center', true);
   textFn('A cute tower defense', 640, 272, 20, PALETTE.muted, 'center');
-  // Mochi asleep on the panel, dreaming of yarn — bigger, so he reads first.
   drawCat(640, 342, 48, TOWER_TYPES.mochi, 1, 0, 0, true);
   textFn('Z', 706, 296, 22, PALETTE.muted, 'center', true);
   textFn('z', 722, 312, 17, PALETTE.muted, 'center', true);
   textFn('z', 734, 330, 13, PALETTE.muted, 'center', true);
   textFn('Shadow bugs are marching on the big lantern!', 640, 410, 17, PALETTE.text, 'center');
   textFn('Place cat towers on the plots, earn coins, survive 10 waves.', 640, 434, 17, PALETTE.text, 'center');
-  // WIN/LOSE and hotkeys demoted to secondary hierarchy (Nemotron Stage 5):
-  // smaller, softer — the logo and the cat own the first glance.
   textFn('WIN: survive 10 waves · LOSE: the lantern falls', 640, 458, 12, 'rgba(255, 209, 102, 0.8)', 'center');
   textFn('Q/E/R: Flare, Surge, Purr · T: change a tower target · 1-6: pick a tower', 640, 482, 11, PALETTE.muted, 'center');
   for (const buttonDef of DIFF_BUTTONS) {
@@ -86,7 +81,6 @@ export function drawPaused(ctx, textFn) {
 }
 
 export function drawWin(ctx, textFn, world, best) {
-  // Festival relight (FIX-1, Nemotron): lighter dim + warm halo, like the title.
   panel(ctx, textFn, 290, 80, 700, 520, 0.55);
   const halo = ctx.createRadialGradient(640, 350, 60, 640, 350, 480);
   halo.addColorStop(0, 'rgba(255, 209, 102, 0)');

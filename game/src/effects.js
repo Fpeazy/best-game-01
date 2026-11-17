@@ -63,8 +63,6 @@ export function createEffects(random) {
     }
     if (slot === null) slot = texts[0];
     slot.active = true;
-    // Clamp callouts inside the field; stack numbers that would land on the
-    // same spot (FIX-2: dense moments stacked "144/1518" into one blob).
     slot.x = Math.max(140, Math.min(FIELD.width - 140, x + (random() - 0.5) * 28));
     let stack = 0;
     for (let i = 0; i < texts.length; i += 1) {

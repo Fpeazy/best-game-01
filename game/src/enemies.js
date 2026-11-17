@@ -133,13 +133,11 @@ export function createEnemies(random) {
       const enemy = list[i];
       if (!enemy.active) continue;
       enemy.wobble += dt * 6;
-      // The boss's phase follows its health; a new phase is announced once.
       if (enemy.type === 'boss') {
         const phase = bossPhaseOf(enemy);
         if (phase !== enemy.phase) {
           enemy.phase = phase;
           if (phase === 3 && !enemy.flying) {
-            // The Shadow Moth takes flight: keep its progress, fly straight at the lantern.
             enemy.progressBase = enemy.progress;
             enemy.fromX = enemy.x;
             enemy.fromY = enemy.y;
@@ -171,7 +169,6 @@ export function createEnemies(random) {
         leaked.push(enemy);
         continue;
       }
-      // Spawners shed escorts as they travel.
       if (ENEMY_TYPES[enemy.type].spawns) {
         enemy.spawnTimer -= dt;
         if (enemy.spawnTimer <= 0) {
