@@ -89,7 +89,15 @@ export function drawPaused(ctx, textFn) {
 }
 
 export function drawWin(ctx, textFn, world, best) {
-  panel(ctx, textFn, 290, 80, 700, 520);
+  // Festival relight (FIX-1, Nemotron): lighter dim + warm halo, like the title.
+  panel(ctx, textFn, 290, 80, 700, 520, 0.55);
+  const halo = ctx.createRadialGradient(640, 350, 60, 640, 350, 480);
+  halo.addColorStop(0, 'rgba(255, 209, 102, 0)');
+  halo.addColorStop(0.6, 'rgba(255, 209, 102, 0.06)');
+  halo.addColorStop(0.8, 'rgba(255, 209, 102, 0.16)');
+  halo.addColorStop(1, 'rgba(255, 209, 102, 0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, FIELD.width, FIELD.height);
   textFn('★ YOU WIN ★', 640, 138, 26, '#ffd166', 'center', true);
   textFn('The garden blooms!', 640, 205, 48, '#ffd166', 'center', true);
   textFn('Mochi held the garden through all 10 waves.', 640, 236, 19, PALETTE.text, 'center');

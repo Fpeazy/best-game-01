@@ -1,7 +1,4 @@
-// Juice: pooled particles, floating damage numbers, expanding purr rings, swat arcs
-// and trauma-based screen shake. All pools are allocated once at boot; nothing here
-// allocates per frame. Shake is trauma squared, so light hits barely move and the
-// boss's hits punch.
+// Juice: pooled particles, floating numbers, rings, arcs, trauma shake.
 import { FIELD, POOL } from './config.js';
 
 export function createEffects(random) {
@@ -56,18 +53,25 @@ export function createEffects(random) {
   }
 
   function spawnText(x, y, text, color, size) {
+    const big = (size ?? 14) >= 20;
+    let live = 0;
+    for (let i = 0; i < texts.length; i += 1) if (texts[i].active) live += 1;
+    if (!big && live >= 40) return;
     let slot = null;
     for (let i = 0; i < texts.length; i += 1) {
       if (!texts[i].active) { slot = texts[i]; break; }
     }
     if (slot === null) slot = texts[0];
     slot.active = true;
-    // Spread same-target numbers so they never stack into one blob, and clamp
-    // long callouts (FLARE BURST!, LANTERN SURGE!) inside the field — v3/v4
-    // screenshots caught them running off the right edge. The clamp leaves
-    // room for the widest callouts (28px "THE SHADOW MOTH!" ≈ 250px wide).
+    // Clamp callouts inside the field; stack numbers that would land on the
+    // same spot (FIX-2: dense moments stacked "144/1518" into one blob).
     slot.x = Math.max(140, Math.min(FIELD.width - 140, x + (random() - 0.5) * 28));
-    slot.y = y;
+    let stack = 0;
+    for (let i = 0; i < texts.length; i += 1) {
+      const t = texts[i];
+      if (t.active && t !== slot && Math.abs(t.x - slot.x) < 48 && Math.abs(t.y - y) < 36) stack += 1;
+    }
+    slot.y = y - 20 * stack;
     slot.life = 0.8;
     slot.maxLife = 0.8;
     slot.text = text;

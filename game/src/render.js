@@ -1,9 +1,5 @@
-// Drawing only: the world's state and the current screen in, pixels out. The
-// 1280x720 playfield is scaled to fit the window and centred. Warm lantern glow
-// against the cool night, round cute shapes, thick outlines — crispness comes
-// from light and geometry, not saturation. Every tower and bug type reads at a
-// glance: each cat has its own body colour, hat and held item, each bug its own
-// size, colour and shape, and the boss carries its own rim light.
+// Drawing only: world state in, pixels out. Warm lantern glow on cool night;
+// crispness from light and geometry, not saturation.
 import { ABILITIES, ABILITY_ORDER, DIFFICULTIES, FIELD, FONT, LAYOUT, MAX_POST_LEVEL, MUTATORS, PALETTE, POST_LEVELS, POST_UPGRADE_COST } from './config.js';
 import { LANTERN, LANTERN_POSTS, PATH_POINTS, PATH_WIDTH, POND, postGlowRadius } from './garden.js';
 import { PHASE_BUILD, PHASE_WAVE } from './world.js';
@@ -38,11 +34,7 @@ export function createRenderer(canvas) {
   const livesLabel = cachedLabel('');
   const scoreLabel = cachedLabel('Score ');
   const lightLabel = cachedLabel('Lantern Light ');
-  // Performance (v4, Lead's call): the headless judge runs on software
-  // rendering, where a fresh radial gradient per glow per frame cost us
-  // 3.7 fps and 0.34x sim speed — a losing entry before it is even judged.
-  // Every gradient below is built ONCE and reused; glows are one pre-rendered
-  // sprite stamped with drawImage. Same look, a fraction of the frame cost.
+  // Perf: gradients built once and reused; glows are one stamped sprite.
   const glowSprite = (() => {
     const s = document.createElement('canvas');
     s.width = 256;
@@ -1632,9 +1624,7 @@ export function createRenderer(canvas) {
     drawEnemies(world);
     drawProjectiles(world);
     drawEffects(world);
-    // The festival wash and the flash overlay: gold over the field only (the
-    // HUD is drawn after, so it stays readable). Thinned in v4 — a wash that
-    // is too strong turns the whole frame into pastel haze.
+    // Festival wash + flash: gold over the field only; HUD stays readable.
     if (festival > 0) {
       context.save();
       context.globalAlpha = festival;

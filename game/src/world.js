@@ -482,8 +482,7 @@ export function createWorld(random) {
       for (let i = 0; i < enemies.phaseEvents.length; i += 1) {
         const { enemy, phase } = enemies.phaseEvents[i];
         events |= EVENT_BOSS_PHASE;
-        // Short banners (v4 fix): the v3 messages were long enough to run off
-        // the panel and overlap the boss bar. Two short lines, on a pill.
+        // Short banners: v3 lines ran off the panel and overlapped the boss bar.
         state.message = phase === 3
           ? 'Phase 3 — it flies! Only fish & star cats can hit it!'
           : 'Phase 2 — the Moth grows angry!';
