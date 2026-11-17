@@ -1,6 +1,3 @@
-// Procedural WebAudio sounds — no audio assets, no network. The context is created
-// lazily on the first user gesture (browsers block sound before one) and every call
-// is a no-op until then, so headless runs and screenshots stay silent and safe.
 export function createAudio() {
   let context = null;
   let muted = false;

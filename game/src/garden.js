@@ -1,7 +1,3 @@
-// The garden's map: the winding path the bugs walk, the build plots beside it, the
-// lantern posts whose glow empowers nearby towers, and the big paper lantern at the end.
-// Nothing here depends on the browser; the same fixed map is used by the sim, the
-// renderer and the headless playtest.
 import { FIELD, POST_LEVELS } from './config.js';
 
 /** The path as waypoints, from the garden gate (off the left edge) to the big lantern. */
@@ -85,12 +81,6 @@ export function pointAlongPath(distance) {
   return { x: last.x, y: last.y, angle: 0 };
 }
 
-/**
- * Build plots: a fixed grid of candidate spots, keeping only the ones clear of the path,
- * the big lantern and the lantern posts. Each plot gets a coverage score (how much path
- * lies within a typical tower's range) so the autopilot — and the player — can tell the
- * good spots from the bad ones.
- */
 export function buildPlots() {
   const plots = [];
   const spacingX = 96;
@@ -172,6 +162,9 @@ export function buildDecor(random) {
   // path: nearest leg is 60px+ away), so the mid-field reads at thumbnail size.
   const mid = [[360, 240], [430, 340], [500, 230], [560, 330], [700, 260], [840, 360], [900, 240], [760, 340]];
   for (const [x, y] of mid) flowers.push({ x, y, color: '#ffd166', r: 5 });
+  // IMPROVE: three big gold blooms (r=9) in the middle — the small ones read
+  // as texture at thumbnail size, these read as flowers.
+  for (const [x, y] of [[500, 300], [660, 300], [840, 270]]) flowers.push({ x, y, color: '#ffd166', r: 9 });
   // Fireflies: a grove over the moonflower pond, and a few drifting through the garden.
   const fireflies = [];
   for (let i = 0; i < 9; i += 1) {
@@ -206,17 +199,17 @@ export function buildDecor(random) {
     { x: POND.x + 18, y: POND.y + 12, r: 10 },
     { x: POND.x + 52, y: POND.y - 12, r: 9 },
   ];
-  // Cat statues and stone lantern shrines fill the empty middle of the garden
-  // (v4, GLM item 6 + Nemotron 5): fixed spots, all clear of the path, the pond
-  // and the plots, so the field reads as a garden, not a blank lawn.
   const statues = [
     { x: 430, y: 285, r: 22 },
     { x: 790, y: 305, r: 22 },
+    { x: 560, y: 255, r: 22 },
+    { x: 880, y: 360, r: 22 },
   ];
   const shrines = [
     { x: 1050, y: 300, r: 16 },
     { x: 140, y: 540, r: 16 },
     { x: 620, y: 560, r: 16 },
+    { x: 700, y: 260, r: 16 },
   ];
   const bushes = [];
   const bushSpots = [[100, 260], [200, 540], [360, 90], [540, 90], [700, 540], [880, 540], [1180, 600]];

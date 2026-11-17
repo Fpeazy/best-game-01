@@ -1,7 +1,3 @@
-// The ten campaign waves, and the endless Long Night after them: what marches in,
-// and in what order. The queue is interleaved so a wave arrives as a mixed stream,
-// not one clump of each kind. The boss opens wave 10 and its escorts trickle in
-// behind it; in the Long Night a Moth Queen arrives every fifth night.
 import { MAX_WAVE, MUTATOR_KEYS } from './config.js';
 
 /** [type, count] groups per wave, in the order they are introduced. */

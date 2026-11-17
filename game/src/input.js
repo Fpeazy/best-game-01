@@ -1,8 +1,3 @@
-// Keyboard and pointer input. Held keys give nothing to steer here — this is a
-// mouse game — so the input is one-shot presses (start, pause, speed, mute, tower
-// shortcuts) queued as bit flags and taken once by the loop, plus the pointer's
-// position and clicks in field coordinates, so a press between two frames is never
-// lost and never counted twice.
 export const ACTION_CONFIRM = 1;
 export const ACTION_PAUSE = 2;
 export const ACTION_SPEED = 4;

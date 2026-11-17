@@ -1,11 +1,3 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed
-// 1/60 s steps (several in a slow frame, none in a fast one, doubled at 2x speed),
-// and the renderer paints what is there. Five screens: title, play, paused,
-// win and game over.
-//
-// ?seed=N fixes the bug pattern. ?shot=title|play|boss|win (with &seed=N) stages
-// that scene instead of running the loop, paints it twice and sets
-// window.__shotReady for a screenshot.
 import { BEST_KEY, STEP } from './config.js';
 import { createRandom } from './random.js';
 import {
@@ -331,9 +323,6 @@ function runGame() {
     handleActions();
     handleClick();
     updateHover();
-    // Hit-stop (game-feel, large tier): the sim freezes for a beat on crits and
-    // boss phase changes, while the shake trauma decays on real time so the
-    // camera never freezes off-centre. Input still registers through it.
     if (world.fx.hitStop > 0) {
       world.fx.hitStop = Math.max(0, world.fx.hitStop - realDt);
       world.fx.decayTrauma(realDt);

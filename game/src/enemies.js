@@ -1,8 +1,3 @@
-// The shadow bugs: definitions, per-wave scaling, movement along the path (or,
-// for the flutter moths, straight through the air at the lantern), and the
-// boss's three phases and spawns. Waypoint steering on the fixed garden path,
-// with a stuck guard: an enemy that cannot advance leaks. The Shadow Moth
-// changes phase as it loses health: angry at 66%, flying below 33%.
 import { MAX_WAVE, POOL } from './config.js';
 import { LANTERN, PATH_POINTS, pathLength, pointAlongPath } from './garden.js';
 
@@ -15,17 +10,6 @@ export const ENEMY_TYPES = {
   queen: { name: 'Moth Queen', hp: 1200, speed: 40, reward: 80, lives: 2, radius: 30, armor: 1, flying: true, spawns: true },
 };
 
-/**
- * An enemy's stats at a wave: health grows 20% a wave through the campaign, then
- * 12% a night in the Long Night; speed a little. `diff` is the difficulty's
- * multipliers ({hp, speed}), `mods` the night's mutator ({hp, speed, armor, rewardMul,
- * rewardBonus, mothSpeed}).
- *
- * v3 retune: HP growth was 25%/wave; cut to 20%/wave to compensate for the
- * round-3 cooldown fix, which removed the burst-fire bug that had silently
- * inflated tower damage. Together with the 1.20x tower-damage multiplier this
- * restores the verified balance (Easy 12/12, Normal ~6/10, Hard reaches wave 10).
- */
 export function enemyStats(type, wave, diff, mods) {
   const def = ENEMY_TYPES[type];
   const hpScale = wave <= MAX_WAVE
@@ -142,11 +126,6 @@ export function createEnemies(random) {
     return interval;
   }
 
-  /**
-   * One fixed step. Returns the enemies that reached the lantern this step (a reused
-   * array — read it before the next update). `now` is the world's sim time. Boss phase
-   * changes land in `phaseEvents` (a reused array, read before the next update).
-   */
   function update(dt, now, wave, diff, mods) {
     leaked.length = 0;
     phaseEvents.length = 0;

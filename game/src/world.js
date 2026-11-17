@@ -63,9 +63,6 @@ export function createWorld(random) {
     hoverTower: null,
     message: '',
     messageTimer: 0,
-    /** Last wave-clear bonus, shown as short stacked text under the combo
-     * meter (Nemotron Stage 4): the floating "Wave clear!" callout moved
-     * here so the field stays clean for combat numbers. */
     clearBonus: '',
     clearBonusTimer: 0,
     bossSpawned: false,
@@ -164,12 +161,6 @@ export function createWorld(random) {
     return `Wave ${Math.min(state.wave, MAX_WAVE)}/${MAX_WAVE}`;
   }
 
-  /**
-   * The Lantern Festival: every 5th wave all the lanterns flare at once — a
-   * golden burst at every post and the big lantern, sparkles, a flash and a
-   * shake punch. Pure sim state (festival 0..1), so a screenshot staged at a
-   * festival moment shows exactly what a player sees.
-   */
   function triggerFestival(message) {
     state.festival = 1;
     fx.triggerFlash(0.7);
@@ -228,11 +219,6 @@ export function createWorld(random) {
     return TARGET_LABELS[next];
   }
 
-  /**
-   * Fire an active ability (Q / E / R, or a top-bar chip). Returns an event
-   * bitmask; 0 when on cooldown or not in a wave. Kills are rewarded inline
-   * (coins, score, kill count) because this runs between sim steps.
-   */
   function useAbility(key) {
     const def = ABILITIES[key];
     if (def === undefined || state.phase !== PHASE_WAVE) return 0;
@@ -246,7 +232,7 @@ export function createWorld(random) {
       fx.spawnBurst(LANTERN.x, LANTERN.y, '#fff6d8', 14, 120, 0.8, 3);
       fx.triggerFlash(0.4);
       fx.addTrauma(0.4);
-      fx.spawnText(LANTERN.x, LANTERN.y - 60, '✦ FLARE BURST!', '#ffd166', 24);
+      fx.spawnText(LANTERN.x, LANTERN.y - 60, '✦ FLARE BURST!', '#ffd166', 28);
       const before = towers.killed.length;
       for (const enemy of enemies.list) {
         if (!enemy.active) continue;
@@ -375,9 +361,6 @@ export function createWorld(random) {
     state.score += bonus * 5;
     // The kill chain is broken between waves: no kills, no combo.
     towers.resetCombo();
-    // No floating "Wave clear!" text (Nemotron Stage 4): the bonus moves to
-    // short stacked text under the combo meter, so the field stays clean for
-    // combat numbers.
     state.clearBonus = `Wave clear! +${bonus + extra}`;
     state.clearBonusTimer = 4;
     if (state.wave >= MAX_WAVE && !state.endless) {
@@ -393,10 +376,6 @@ export function createWorld(random) {
     return EVENT_WAVE_CLEAR;
   }
 
-  /**
-   * One fixed step. With `harmless` set (the title screen's backdrop) bugs march and
-   * towers shoot, but nothing leaks, scores or ends the game.
-   */
   function step(dt, harmless) {
     let events = 0;
     state.elapsed += dt;
@@ -410,9 +389,6 @@ export function createWorld(random) {
     }
     if (state.surgeTimer > 0) state.surgeTimer = Math.max(0, state.surgeTimer - dt);
     if (state.purrTimer > 0) state.purrTimer = Math.max(0, state.purrTimer - dt);
-    // Festival Cascade: while the garden blazes, fireworks rain across the
-    // field every half second — gold, pink, lavender. Visual only, so balance
-    // is untouched.
     if (state.festival > 0.25) {
       state.cascadeTimer -= dt;
       if (state.cascadeTimer <= 0) {
@@ -451,9 +427,6 @@ export function createWorld(random) {
           if (enemy !== null && type === 'boss') {
             state.bossSpawned = true;
             events |= EVENT_BOSS;
-            // Boss entrance (v4 spectacle): the gate erupts — a purple burst,
-            // a gold burst, a shockwave ring, a flash, a shake punch and a big
-            // callout. The arrival must read in a still frame, not just in motion.
             fx.spawnBurst(enemy.x, enemy.y, '#b48ae0', 24, 160, 0.9, 5);
             fx.spawnBurst(enemy.x, enemy.y, '#ffd166', 12, 120, 0.7, 4);
             fx.spawnRing(enemy.x, enemy.y, 180, '#ffd166');
@@ -517,6 +490,13 @@ export function createWorld(random) {
         events |= EVENT_KILL;
         fx.spawnBurst(enemy.x, enemy.y, '#c9a7f2', 6, 70, 0.4, 2.5);
         fx.spawnText(enemy.x, enemy.y - enemy.radius - 14, `+${enemy.reward}`, '#ffd166', 20);
+        // Boss death (Nemotron item 5): a gold flash, a burst and a callout.
+        // This is the step's kill loop, so it fires the same step the boss dies.
+        if (enemy.type === 'boss') {
+          fx.triggerFlash(0.6);
+          fx.spawnBurst(enemy.x, enemy.y, '#ffd166', 24, 180, 0.9, 4);
+          fx.spawnText(enemy.x, enemy.y - enemy.radius - 30, 'THE MOTH FALLS!', '#ffd166', 26);
+        }
       }
       if (!harmless && state.phase === PHASE_WAVE && state.spawnQueue.length === 0) {
         let anyAlive = false;

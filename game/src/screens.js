@@ -1,6 +1,3 @@
-// The full-screen overlays: title, paused, win and game over. Each one is a panel
-// over the living garden, with the buttons the player clicks — their rectangles are
-// exported so the click handler and the drawing can never disagree.
 import { DIFFICULTIES, FIELD, MAX_WAVE, PALETTE } from './config.js';
 import { TOWER_TYPES } from './towers.js';
 

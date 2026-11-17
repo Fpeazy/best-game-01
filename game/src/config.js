@@ -1,7 +1,3 @@
-// Every tuning number and colour in one place. The playfield is a fixed 1280x720 logical
-// area; the renderer scales it to the window, so no rule below depends on the screen size.
-// Mochi's Lantern Garden: a cute tower defense. Shadow bugs walk a winding garden path
-// toward the big paper lantern; cat towers on the plots beside it stop them.
 export const FIELD = { width: 1280, height: 720 };
 
 /** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */

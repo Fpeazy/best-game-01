@@ -376,9 +376,6 @@ export function createRenderer(canvas) {
     context.globalAlpha = 1;
   }
 
-  // Festival sparkles (v4 spectacle): while the lanterns blaze, gold stars
-  // glitter along the whole path — the flare reads across the field, not
-  // just at the lantern.
   function drawFestivalSparkles(world) {
     if (world.state.festival > 0.3) {
       context.globalAlpha = world.state.festival * 0.9;
@@ -509,9 +506,6 @@ export function createRenderer(canvas) {
   function drawPlots(world) {
     for (let i = 0; i < world.plots.length; i += 1) {
       const plot = world.plots[i];
-      // A plot standing in a lantern post's glow reads as powered: a warm
-      // gold rim + a soft gold wash, so the glow mechanic is visible on the
-      // field itself, not only in the post's dashed zone.
       let lit = false;
       for (let p = 0; p < LANTERN_POSTS.length; p += 1) {
         const post = LANTERN_POSTS[p];
@@ -625,9 +619,6 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(0, 0, r - 1, Math.PI * 1.15, Math.PI * 1.85);
     context.stroke();
-    // Head as its own overlapping volume (not one flat circle): same colour,
-    // its own shading and rim, sitting on the body so the cat reads as two
-    // puffed clay volumes. The face moves onto the head below.
     context.fillStyle = def.color;
     context.beginPath();
     context.arc(0, -r * 0.28, r * 0.66, 0, Math.PI * 2);
@@ -825,9 +816,6 @@ export function createRenderer(canvas) {
         drawStar4(tower.x + 18, tower.y - 30, 6, '#ffd166');
       }
       const size = tower.type === 'mochi' ? 24 : 20;
-      // A signature-colour ring under every tower (v4): yarn pink, fish blue,
-      // sleepy lavender, star gold, frosty cyan, Mochi orange — the tower's
-      // type reads at thumbnail size even when the cat is small.
       context.strokeStyle = def.color;
       context.globalAlpha = 0.9;
       context.lineWidth = 3;
@@ -977,9 +965,6 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(0, 0, enemy.radius, 0, Math.PI * 2);
     context.fill();
-    // Volume shading for the boss and queen (v4, somewhat-3D): warm light
-    // from above, deep shade below — the big body reads as a volume, not a
-    // flat dark blob.
     if (enemy.type === 'boss' || enemy.type === 'queen') {
       // Cached by radius (perf, v4): the boss radius never changes.
       let shade = volumeGrads.get(`boss,${enemy.radius}`);
@@ -1010,10 +995,6 @@ export function createRenderer(canvas) {
       context.fill();
     }
     if (enemy.type === 'boss') {
-      // Pulsing gold rim light (v4, warm amber not magenta — Lead's call):
-      // the boss glows against the night instead of reading as a dark blob.
-      // No shadowBlur (perf, v4): it is the single slowest canvas op in
-      // software rendering, and the bloom + halo already carry the glow.
       context.strokeStyle = 'rgba(255, 209, 102, 0.9)';
       context.lineWidth = 3;
       context.beginPath();
@@ -1226,9 +1207,6 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     context.globalAlpha = 1;
-    // Sharp sparks and shards (v4, Fxzy: "pertajam efek, jangan terlalu soft
-    // dan kartun"): fast particles draw as hard streaks along their velocity,
-    // slow ones as small diamonds — never soft blobs.
     for (const p of fx.particles) {
       if (!p.active) continue;
       context.globalAlpha = Math.max(0, p.life / p.maxLife);
@@ -1287,10 +1265,6 @@ export function createRenderer(canvas) {
     }
   }
 
-  /** Night bloom (v4): lantern light drawn additively ('lighter') so the glow
-   * pools POP against the deep-night garden. Sharpened per Fxzy ("jangan
-   * terlalu soft"): the wash is thinner, and every light has a hard bright
-   * core + a defined rim instead of a diffuse pastel haze. */
   function drawBloom(world) {
     const festival = world.state.festival;
     context.save();
@@ -1326,9 +1300,6 @@ export function createRenderer(canvas) {
     context.restore();
   }
 
-  /** Bake the static garden once per decor: sky, field, decor, path, plot
-   * beds. The draw functions read the shared `context` binding, so the bake
-   * swaps it to the offscreen canvas and swaps it back. */
   function bakeStatic(world) {
     const layer = document.createElement('canvas');
     layer.width = FIELD.width;
@@ -1390,9 +1361,6 @@ export function createRenderer(canvas) {
     }
   }
 
-  /** The Starfall Combo meter: five stars under the top bar, filling gold as
-   * chained kills build toward the next starfall. Always visible during play
-   * so the mechanic teaches itself; dim when the combo is cold. */
   function drawComboMeter(world) {
     const combo = world.towers.combo ?? 0;
     context.fillStyle = 'rgba(28, 24, 48, 0.88)';
@@ -1421,11 +1389,6 @@ export function createRenderer(canvas) {
     return null;
   }
 
-  /** One merged boss strip (v4, Nemotron Stage 4): boss health runs the strip,
-   * "SHADOW MOTH" sits left, the phase name is a right-aligned pill at the
-   * strip's right edge — no separate phase-banner row. The phase-change
-   * announcement text still shows briefly as the message pill (it carries
-   * the phase-3 targeting warning), then the strip alone remains. */
   function drawBossBar(world) {
     const boss = bossActive(world);
     if (boss === null) return;

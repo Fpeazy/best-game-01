@@ -1,6 +1,3 @@
-// The HUD's hit areas: the shop cards, the top-bar buttons, the start-wave button
-// and the selected-tower panel. One place owns every rectangle, so the renderer and
-// the click handler can never disagree about where a button is.
 import { ABILITY_ORDER, LAYOUT } from './config.js';
 import { LANTERN_POSTS } from './garden.js';
 import { TOWER_TYPES } from './towers.js';
@@ -81,11 +78,6 @@ function inside(x, y, rect) {
   return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 }
 
-/**
- * What a click at field coordinates (x, y) hit: a shop card, a plot, a placed tower,
- * a lantern post, a top-bar button, the start-wave button, or the selected panel's
- * upgrade/sell buttons. Returns null when it hit nothing clickable.
- */
 export function hitTest(x, y, world) {
   const buttons = topButtons();
   if (inside(x, y, buttons.pause)) return { kind: 'button', name: 'pause' };

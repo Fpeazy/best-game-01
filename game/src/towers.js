@@ -1,9 +1,3 @@
-// The cat towers: definitions, per-level stats, targeting, firing and projectiles.
-// A tower's job is to watch its patch of garden and swat, lob or toss at the first bug
-// in range — the one furthest along the path. Towers inside a lantern's glow fight
-// better (the Lantern Light mechanic), and at level 3 each tower gains its final form:
-// yarn doubles its shot, fish splashes wider, sleepy purrs deeper, star crits, frosty
-// freezes, and Mochi Prime swats twice as hard.
 import { POOL } from './config.js';
 
 export const TOWER_TYPES = {
@@ -47,23 +41,11 @@ export const TOWER_TYPES = {
 
 export const MAX_LEVEL = 3;
 
-/** Flat tower-damage multiplier (v3 balance retune): the round-3 cooldown fix
- * removed a burst-fire bug that had silently inflated tower damage, so all
- * tower damage is raised 20% as the single direct compensation. */
 export const TOWER_DAMAGE_MULT = 1.2;
 
-/** Starfall Combo: chained kills build a combo — each kill within 1.5s of the
- * last adds one, up to 5. At 5 a star falls on the toughest bug for flat
- * damage (150), with a beam, a flash and a hit-stop punch. A spectacle and a
- * reward, not a balance lever. */
 export const COMBO_WINDOW = 1.5;
 export const COMBO_MAX = 5;
 export const STARFALL_DAMAGE = 150;
-/** Starfall scaling (v4, Nemotron Stage 3): the flat 150 did not keep up with
- * wave HP (+20%/wave), so by waves 7-9 — the pressure band where medium
- * strategies collapse — it was negligible chip. Each wave adds 20 damage
- * (wave 10: 330, ~5% of the boss, ~a beetle's worth) so the combo stays a
- * real reward where it matters most. */
 export const STARFALL_PER_WAVE = 20;
 
 /** Stats of a tower at a level, before the lantern-light bonus. */
@@ -126,12 +108,6 @@ export function createTowers(random, fx, glowAt) {
   let comboTimer = 0;
   let starfalls = 0;
 
-  /**
-   * The Starfall itself: a beam of light falls on the toughest bug alive, a
-   * gold burst, a ring, a flash and a hit-stop punch, and wave-scaled damage. If the
-   * star kills, the kill is appended to `killed` so the world rewards it.
-   * Returns false when nothing is alive to strike.
-   */
   function triggerStarfall(enemies, count, wave) {
     let target = null;
     for (let i = 0; i < count; i += 1) {
@@ -145,7 +121,7 @@ export function createTowers(random, fx, glowAt) {
     fx.spawnBurst(target.x, target.y, '#ffd166', 26, 200, 1.0, 4.5);
     fx.spawnBurst(target.x, target.y, '#fff6d8', 14, 130, 0.8, 3);
     fx.spawnRing(target.x, target.y, 190, '#ffd166');
-    fx.spawnText(target.x, target.y - target.radius - 30, '★ STARFALL!', '#ffd166', 24);
+    fx.spawnText(target.x, target.y - target.radius - 70, '★ STARFALL!', '#ffd166', 28);
     fx.triggerFlash(0.45);
     fx.triggerHitStop(0.15);
     fx.addTrauma(0.5);
@@ -192,13 +168,6 @@ export function createTowers(random, fx, glowAt) {
     tower.active = false;
   }
 
-  /** The enemy furthest along the path inside this tower's range (and hittable).
-   * A boss or Moth Queen in range is always the target (every beam converging
-   * on the boss is the most readable boss fight); otherwise the bug picked by
-   * this tower's targeting mode (tower-defense skill §2: first = default by
-   * path progress, strongest, weakest, closest, last). The boss override is a
-   * deliberate Lead decision: v3 proved escorts absorb all fire without it.
-   */
   function acquire(tower, range, enemies, count) {
     let best = null;
     let bestBoss = null;
@@ -314,11 +283,6 @@ export function createTowers(random, fx, glowAt) {
     }
   }
 
-  /**
-   * One fixed step. Returns the enemies killed this step (a reused array — read it
-   * before the next update). `now` is the world's sim time, for slow timers; `mods`
-   * is the night's mutator ({range} for Thick Fog).
-   */
   function update(dt, enemies, count, now, mods) {
     killed.length = 0;
     const rangeMul = mods?.range ?? 1;
@@ -371,9 +335,6 @@ export function createTowers(random, fx, glowAt) {
       }
     }
     updateProjectiles(dt, enemies, count, now);
-    // Starfall Combo: kills chained within the window build the combo; at 5 a
-    // star falls. One starfall per step at most; if nothing is alive to strike
-    // the combo waits at 4 for the next kill.
     if (comboTimer > 0) {
       comboTimer -= dt;
       if (comboTimer <= 0) combo = 0;
