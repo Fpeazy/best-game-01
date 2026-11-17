@@ -183,9 +183,9 @@ export function stageShot(name, world) {
   // freshest fireworks are still alight when the frame freezes.
   world.state.festival = 1;
   for (let i = 0; i < 0.6 / STEP; i += 1) world.step(STEP, true);
-  // Fresh starbursts in the top corners, outside the panel — the cascade
-  // bursts have faded by the frame, these are still at full alpha.
-  world.fx.spawnBurst(150, 140, '#ffd166', 24, 160, 0.9, 6);
+  // Fresh starbursts outside the panel — gold lower-left over dark grass
+  // (top-left blended with the road), pink over the pond, full alpha.
+  world.fx.spawnBurst(115, 580, '#ffd166', 24, 160, 0.9, 6);
   world.fx.spawnBurst(1130, 140, '#ff9ec6', 24, 160, 0.9, 6);
   const won = world.state.phase === PHASE_WON;
   return { screen: won ? SCREEN_WIN : SCREEN_OVER, best: world.state.score };
